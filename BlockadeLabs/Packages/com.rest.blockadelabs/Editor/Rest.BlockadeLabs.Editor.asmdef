@@ -1,8 +1,12 @@
 {
-    "name": "ProjectScope.ProjectName",
-    "rootNamespace": "ProjectScope.ProjectName",
-    "references": [],
-    "includePlatforms": [],
+    "name": "Rest.BlockadeLabs.Editor",
+    "rootNamespace": "Rest.BlockadeLabs.Editor",
+    "references": [
+        "Rest.BlockadeLabs"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
