@@ -21,5 +21,6 @@
   },
   "publishConfig": {
     "registry": "https://package.openupm.com"
-  }
+  },
+  "hideInEditor": false
 }

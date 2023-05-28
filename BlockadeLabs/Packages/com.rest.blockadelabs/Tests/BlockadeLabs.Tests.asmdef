@@ -1,10 +1,9 @@
 {
-    "name": "Rest.BlockadeLabs.Tests",
-    "rootNamespace": "Rest.BlockadeLabs.Tests",
+    "name": "BlockadeLabs.Tests",
+    "rootNamespace": "BlockadeLabs.Tests",
     "references": [
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner",
-        "Rest.BlockadeLabs"
+        "UnityEditor.TestRunner"
     ],
     "includePlatforms": [
         "Editor"

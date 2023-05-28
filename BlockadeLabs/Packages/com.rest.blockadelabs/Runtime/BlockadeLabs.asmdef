@@ -1,12 +1,11 @@
 {
-    "name": "Rest.BlockadeLabs.Editor",
-    "rootNamespace": "Rest.BlockadeLabs.Editor",
+    "name": "BlockadeLabs",
+    "rootNamespace": "BlockadeLabs",
     "references": [
-        "Rest.BlockadeLabs"
+        "GUID:a6609af893242c7438d701ddd4cce46a",
+        "GUID:7958db66189566541a6363568aee1575"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
