@@ -20,6 +20,7 @@ namespace BlockadeLabs
         {
             httpClient ??= new HttpClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "com.rest.blockadelabs");
+            httpClient.DefaultRequestHeaders.Add("X-API-Key", Authentication.Info.ApiKey);
             return httpClient;
         }
 

@@ -2,9 +2,9 @@ using System.Threading.Tasks;
 
 namespace BlockadeLabs
 {
-    public sealed class RootEndpoint : BlockadeLabsBaseEndpoint
+    public sealed class SkyboxEndpoint : BlockadeLabsBaseEndpoint
     {
-        public RootEndpoint(BlockadeLabsClient client) : base(client) { }
+        public SkyboxEndpoint(BlockadeLabsClient client) : base(client) { }
 
         protected override string Root => string.Empty;
 

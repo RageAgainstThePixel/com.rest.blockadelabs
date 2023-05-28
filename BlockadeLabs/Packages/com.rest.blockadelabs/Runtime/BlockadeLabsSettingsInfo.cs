@@ -5,12 +5,13 @@ namespace BlockadeLabs
 {
     public class BlockadeLabsSettingsInfo : ISettingsInfo
     {
-        internal const string DefaultDomain = "blockade.cloudshell.run";
+        internal const string DefaultDomain = "backend.blockadelabs.com";
+        internal const string DefaultVersion = "v1";
 
         public BlockadeLabsSettingsInfo()
         {
             Domain = DefaultDomain;
-            BaseRequestUrlFormat = $"https://{Domain}/{{0}}";
+            BaseRequestUrlFormat = $"https://{Domain}/api/{DefaultVersion}/{{0}}";
         }
 
         public BlockadeLabsSettingsInfo(string domain)
@@ -27,7 +28,7 @@ namespace BlockadeLabs
             }
 
             Domain = domain;
-            BaseRequestUrlFormat = $"https://{Domain}/{{0}}";
+            BaseRequestUrlFormat = $"https://{Domain}/api/{DefaultVersion}/{{0}}";
         }
 
         public string Domain { get; }
