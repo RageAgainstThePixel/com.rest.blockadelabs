@@ -15,7 +15,7 @@ namespace BlockadeLabs.Tests
 
             var request = new SkyboxRequest("underwater");
             var result = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
-            Debug.Log(result);
+            Assert.IsNotNull(result);
         }
     }
 }
