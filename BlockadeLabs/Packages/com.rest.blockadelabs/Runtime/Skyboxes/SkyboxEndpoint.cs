@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BlockadeLabs
+namespace BlockadeLabs.Skyboxes
 {
     public sealed class SkyboxEndpoint : BlockadeLabsBaseEndpoint
     {
@@ -9,8 +9,9 @@ namespace BlockadeLabs
 
         protected override string Root => string.Empty;
 
-        public async Task GenerateSkyboxAsync(CancellationToken cancellationToken = default)
+        public async Task GenerateSkyboxAsync(SkyboxRequest request, CancellationToken cancellationToken = default)
         {
+
             await Task.CompletedTask;
         }
 

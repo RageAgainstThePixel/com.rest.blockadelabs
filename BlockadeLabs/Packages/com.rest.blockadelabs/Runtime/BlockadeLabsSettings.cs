@@ -4,7 +4,7 @@ using Utilities.WebRequestRest.Interfaces;
 
 namespace BlockadeLabs
 {
-    public class BlockadeLabsSettings : ISettings
+    public sealed class BlockadeLabsSettings : ISettings
     {
         public BlockadeLabsSettings()
         {

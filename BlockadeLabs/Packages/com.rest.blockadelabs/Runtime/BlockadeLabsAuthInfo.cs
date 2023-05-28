@@ -6,7 +6,7 @@ using Utilities.WebRequestRest.Interfaces;
 namespace BlockadeLabs
 {
     [Serializable]
-    public class BlockadeLabsAuthInfo : IAuthInfo
+    public sealed class BlockadeLabsAuthInfo : IAuthInfo
     {
         public BlockadeLabsAuthInfo(string apiKey)
         {

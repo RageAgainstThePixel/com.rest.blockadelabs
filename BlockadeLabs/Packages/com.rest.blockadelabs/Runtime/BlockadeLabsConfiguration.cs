@@ -4,7 +4,7 @@ using Utilities.WebRequestRest.Interfaces;
 namespace BlockadeLabs
 {
     [CreateAssetMenu(fileName = nameof(BlockadeLabsConfiguration), menuName = nameof(BlockadeLabs) + "/" + nameof(BlockadeLabsConfiguration), order = 0)]
-    public class BlockadeLabsConfiguration : ScriptableObject, IConfiguration
+    public sealed class BlockadeLabsConfiguration : ScriptableObject, IConfiguration
     {
         [SerializeField]
         [Tooltip("The api key.")]

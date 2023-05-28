@@ -3,7 +3,7 @@ using Utilities.WebRequestRest.Interfaces;
 
 namespace BlockadeLabs
 {
-    public class BlockadeLabsSettingsInfo : ISettingsInfo
+    public sealed class BlockadeLabsSettingsInfo : ISettingsInfo
     {
         internal const string DefaultDomain = "backend.blockadelabs.com";
         internal const string DefaultVersion = "v1";
