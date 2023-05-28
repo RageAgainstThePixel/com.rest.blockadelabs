@@ -3,7 +3,7 @@ using System.Security.Authentication;
 using UnityEngine;
 using Utilities.WebRequestRest.Interfaces;
 
-namespace Rest.BlockadeLabs
+namespace BlockadeLabs
 {
     [Serializable]
     public class BlockadeLabsAuthInfo : IAuthInfo

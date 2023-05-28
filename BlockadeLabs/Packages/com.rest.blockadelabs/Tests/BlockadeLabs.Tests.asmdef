@@ -3,7 +3,9 @@
     "rootNamespace": "BlockadeLabs.Tests",
     "references": [
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "BlockadeLabs",
+        "Utilities.Rest"
     ],
     "includePlatforms": [
         "Editor"

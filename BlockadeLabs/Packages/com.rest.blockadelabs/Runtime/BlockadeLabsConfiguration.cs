@@ -1,7 +1,7 @@
 using UnityEngine;
 using Utilities.WebRequestRest.Interfaces;
 
-namespace Rest.BlockadeLabs
+namespace BlockadeLabs
 {
     [CreateAssetMenu(fileName = nameof(BlockadeLabsConfiguration), menuName = nameof(BlockadeLabs) + "/" + nameof(BlockadeLabsConfiguration), order = 0)]
     public class BlockadeLabsConfiguration : ScriptableObject, IConfiguration

@@ -2,7 +2,7 @@ using System.Linq;
 using UnityEngine;
 using Utilities.WebRequestRest.Interfaces;
 
-namespace Rest.BlockadeLabs
+namespace BlockadeLabs
 {
     public class BlockadeLabsSettings : ISettings
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 using Utilities.WebRequestRest.Interfaces;
 
-namespace Rest.BlockadeLabs
+namespace BlockadeLabs
 {
     public sealed class BlockadeLabsAuthentication : AbstractAuthentication<BlockadeLabsAuthentication, BlockadeLabsAuthInfo>
     {

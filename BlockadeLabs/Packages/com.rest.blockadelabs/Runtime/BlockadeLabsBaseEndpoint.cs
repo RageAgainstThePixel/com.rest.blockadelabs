@@ -1,6 +1,6 @@
 using Utilities.WebRequestRest;
 
-namespace Rest.BlockadeLabs
+namespace BlockadeLabs
 {
     public abstract class BlockadeLabsBaseEndpoint : BaseEndPoint<BlockadeLabsClient, BlockadeLabsAuthentication, BlockadeLabsSettings>
     {

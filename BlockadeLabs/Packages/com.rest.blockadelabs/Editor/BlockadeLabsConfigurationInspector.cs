@@ -1,4 +1,4 @@
-using Rest.BlockadeLabs;
+using BlockadeLabs;
 using System;
 using UnityEditor;
 using Utilities.Rest.Editor;

@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace Rest.BlockadeLabs
+namespace BlockadeLabs
 {
     public sealed class RootEndpoint : BlockadeLabsBaseEndpoint
     {

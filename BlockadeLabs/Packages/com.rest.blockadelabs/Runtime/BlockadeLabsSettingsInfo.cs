@@ -1,7 +1,7 @@
 using System;
 using Utilities.WebRequestRest.Interfaces;
 
-namespace Rest.BlockadeLabs
+namespace BlockadeLabs
 {
     public class BlockadeLabsSettingsInfo : ISettingsInfo
     {

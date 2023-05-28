@@ -3,7 +3,7 @@ using System.Net.Http;
 using System.Security.Authentication;
 using Utilities.WebRequestRest;
 
-namespace Rest.BlockadeLabs
+namespace BlockadeLabs
 {
     public class BlockadeLabsClient : BaseClient<BlockadeLabsAuthentication, BlockadeLabsSettings>
     {
