@@ -82,7 +82,5 @@ _ReSharper.Caches
 artifacts/
 StreamingAssets/
 StreamingAssets.meta
-
-# ====================== #
-# Project Specific Links #
-# ====================== #
+BlockadeLabs/Assets/Resources
+BlockadeLabs/Assets/Resources.meta
