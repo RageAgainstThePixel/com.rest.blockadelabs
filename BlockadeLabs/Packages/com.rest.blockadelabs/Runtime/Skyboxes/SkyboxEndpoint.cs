@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BlockadeLabs
@@ -8,22 +9,17 @@ namespace BlockadeLabs
 
         protected override string Root => string.Empty;
 
-        public async Task GetInFlightAsync()
+        public async Task GenerateSkyboxAsync(CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
         }
 
-        public async Task GenerateSkyboxAsync()
+        public async Task GetSkyboxCallbackAsync(CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
         }
 
-        public async Task GetSkyboxCallbackAsync()
-        {
-            await Task.CompletedTask;
-        }
-
-        public async Task TokenizePromptAsync()
+        public async Task TokenizePromptAsync(CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
         }
