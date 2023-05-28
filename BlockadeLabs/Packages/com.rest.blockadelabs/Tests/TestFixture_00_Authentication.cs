@@ -144,7 +144,7 @@ namespace BlockadeLabs.Tests
             var auth = new BlockadeLabsAuthentication("customIssuedToken");
             var settings = new BlockadeLabsSettings(domain: "api.your-custom-domain.com");
             var api = new BlockadeLabsClient(auth, settings);
-            Console.WriteLine(api.Settings.Info.BaseRequestUrlFormat);
+            Debug.Log(api.Settings.Info.BaseRequestUrlFormat);
         }
 
         [TearDown]

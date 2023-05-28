@@ -12,28 +12,34 @@ namespace BlockadeLabs
 
             var config = Resources.LoadAll<BlockadeLabsConfiguration>(string.Empty)
                 .FirstOrDefault(asset => asset != null);
-            Default = config != null
-                ? new BlockadeLabsSettings(new BlockadeLabsSettingsInfo(config.ProxyDomain))
-                : new BlockadeLabsSettings(new BlockadeLabsSettingsInfo());
+
+            if (config != null)
+            {
+                Info = new BlockadeLabsSettingsInfo(config.ProxyDomain);
+                Default = new BlockadeLabsSettings(Info);
+            }
+            else
+            {
+                Info = new BlockadeLabsSettingsInfo();
+                Default = new BlockadeLabsSettings(Info);
+            }
         }
 
         public BlockadeLabsSettings(BlockadeLabsSettingsInfo settingsInfo)
-            => this.settingsInfo = settingsInfo;
+            => Info = settingsInfo;
 
         public BlockadeLabsSettings(string domain)
-            => settingsInfo = new BlockadeLabsSettingsInfo(domain);
+            => Info = new BlockadeLabsSettingsInfo(domain);
 
         private static BlockadeLabsSettings cachedDefault;
 
         public static BlockadeLabsSettings Default
         {
-            get => cachedDefault ?? new BlockadeLabsSettings();
+            get => cachedDefault ??= new BlockadeLabsSettings();
             internal set => cachedDefault = value;
         }
 
-        private readonly BlockadeLabsSettingsInfo settingsInfo;
-
-        public BlockadeLabsSettingsInfo Info => settingsInfo ?? Default.Info;
+        public BlockadeLabsSettingsInfo Info { get; }
 
         public string BaseRequestUrlFormat => Info.BaseRequestUrlFormat;
     }

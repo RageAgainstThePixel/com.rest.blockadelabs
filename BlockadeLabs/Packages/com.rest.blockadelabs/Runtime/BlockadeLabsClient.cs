@@ -35,7 +35,7 @@ namespace BlockadeLabs
             }
         }
 
-        public override bool HasValidAuthentication => !string.IsNullOrWhiteSpace(Authentication.Info.ApiKey);
+        public override bool HasValidAuthentication => !string.IsNullOrWhiteSpace(Authentication?.Info?.ApiKey);
 
         internal JsonSerializerSettings JsonSerializationOptions { get; }
 

@@ -17,27 +17,28 @@ namespace BlockadeLabs
         /// Instantiates a new Authentication object that will load the default config.
         /// </summary>
         public BlockadeLabsAuthentication()
-            => cachedDefault ??= (LoadFromAsset<BlockadeLabsConfiguration>() ??
-                                  LoadFromDirectory()) ??
-                                  LoadFromDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ??
-                                  LoadFromEnvironment();
+        {
+            cachedDefault ??= (LoadFromAsset<BlockadeLabsConfiguration>() ??
+                               LoadFromDirectory()) ??
+                               LoadFromDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ??
+                               LoadFromEnvironment();
+            Info = cachedDefault?.Info;
+        }
 
         /// <summary>
         /// Instantiates a new Authentication object with the given <paramref name="apiKey"/>, which may be <see langword="null"/>.
         /// </summary>
         /// <param name="apiKey">The API key, required to access the API endpoint.</param>
-        public BlockadeLabsAuthentication(string apiKey) => authInfo = new BlockadeLabsAuthInfo(apiKey);
+        public BlockadeLabsAuthentication(string apiKey) => Info = new BlockadeLabsAuthInfo(apiKey);
 
         /// <summary>
         /// Instantiates a new Authentication object with the given <paramref name="authInfo"/>, which may be <see langword="null"/>.
         /// </summary>
         /// <param name="authInfo"></param>
-        public BlockadeLabsAuthentication(BlockadeLabsAuthInfo authInfo) => this.authInfo = authInfo;
-
-        public readonly BlockadeLabsAuthInfo authInfo;
+        public BlockadeLabsAuthentication(BlockadeLabsAuthInfo authInfo) => Info = authInfo;
 
         /// <inheritdoc />
-        public override BlockadeLabsAuthInfo Info => authInfo ?? Default.Info;
+        public override BlockadeLabsAuthInfo Info { get; }
 
         private static BlockadeLabsAuthentication cachedDefault;
 
@@ -48,7 +49,7 @@ namespace BlockadeLabs
         /// </summary>
         public static BlockadeLabsAuthentication Default
         {
-            get => cachedDefault ?? new BlockadeLabsAuthentication();
+            get => cachedDefault ??= new BlockadeLabsAuthentication();
             internal set => cachedDefault = value;
         }
 
