@@ -1,4 +1,6 @@
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -9,28 +11,61 @@ namespace BlockadeLabs.Skyboxes
 {
     public sealed class SkyboxEndpoint : BlockadeLabsBaseEndpoint
     {
+        private class SkyboxMetadata
+        {
+            public SkyboxMetadata([JsonProperty("request")] SkyboxInfo request)
+            {
+                Request = request;
+            }
+
+            [JsonProperty("request")]
+            public SkyboxInfo Request { get; }
+        }
+
         public SkyboxEndpoint(BlockadeLabsClient client) : base(client) { }
 
-        protected override string Root => string.Empty;
+        protected override string Root => "skybox";
 
-        public async Task<Texture2D> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Returns the list of predefined styles that can influence the overall aesthetic of your skybox generation.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns>A list of <see cref="SkyboxStyle"/>s.</returns>
+        public async Task<IReadOnlyList<SkyboxStyle>> GetSkyboxStylesAsync(CancellationToken cancellationToken = default)
+        {
+            var endpoint = GetUrl("/styles");
+            var response = await client.Client.GetAsync(endpoint, cancellationToken);
+            var responseAsString = await response.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(responseAsString, client.JsonSerializationOptions);
+        }
+
+        /// <summary>
+        /// Generate a skybox image
+        /// </summary>
+        /// <param name="skyboxRequest"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public async Task<Tuple<Texture2D, SkyboxInfo>> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, CancellationToken cancellationToken = default)
         {
             var jsonContent = JsonConvert.SerializeObject(skyboxRequest, client.JsonSerializationOptions).ToJsonStringContent();
-            var response = await client.Client.PostAsync(GetUrl("generate-skybox"), jsonContent, cancellationToken);
-            var responseAsString = await response.ReadAsStringAsync(true);
+            var response = await client.Client.PostAsync(GetUrl("/generate"), jsonContent, cancellationToken);
+            var responseAsString = await response.ReadAsStringAsync();
             var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfo>(responseAsString, client.JsonSerializationOptions);
             var texture = await Rest.DownloadTextureAsync(skyboxInfo.FileUrl, cancellationToken: cancellationToken);
-            return texture;
+            return new Tuple<Texture2D, SkyboxInfo>(texture, skyboxInfo);
         }
 
-        public async Task GetSkyboxCallbackAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Returns the skybox metadata for the given skybox id.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns><see cref="SkyboxInfo"/>.</returns>
+        public async Task<SkyboxInfo> GetSkyboxInfoAsync(int id, CancellationToken cancellationToken = default)
         {
-            await Task.CompletedTask;
-        }
-
-        public async Task TokenizePromptAsync(CancellationToken cancellationToken = default)
-        {
-            await Task.CompletedTask;
+            var response = await client.Client.GetAsync(GetUrl($"/info/{id}"), cancellationToken);
+            var responseAsString = await response.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<SkyboxMetadata>(responseAsString, client.JsonSerializationOptions).Request;
         }
     }
 }
