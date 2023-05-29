@@ -18,10 +18,15 @@ namespace BlockadeLabs
         /// </summary>
         public BlockadeLabsAuthentication()
         {
-            cachedDefault ??= (LoadFromAsset<BlockadeLabsConfiguration>() ??
-                               LoadFromDirectory()) ??
-                               LoadFromDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ??
-                               LoadFromEnvironment();
+            if (cachedDefault != null)
+            {
+                return;
+            }
+
+            cachedDefault = (LoadFromAsset<BlockadeLabsConfiguration>() ??
+                             LoadFromDirectory()) ??
+                             LoadFromDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ??
+                             LoadFromEnvironment();
             Info = cachedDefault?.Info;
         }
 
