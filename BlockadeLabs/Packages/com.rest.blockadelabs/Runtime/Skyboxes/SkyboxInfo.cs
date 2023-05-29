@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using System;
+using UnityEngine;
 
 namespace BlockadeLabs.Skyboxes
 {
@@ -12,11 +13,10 @@ namespace BlockadeLabs.Skyboxes
             [JsonProperty("skybox_style_name")] string skyboxStyleName,
             [JsonProperty("status")] string status,
             [JsonProperty("type")] string type,
-            [JsonProperty("file_url")] string fileUrl,
+            [JsonProperty("file_url")] string mainTextureUrl,
             [JsonProperty("thumb_url")] string thumbUrl,
-            [JsonProperty("depth_map_url")] string depthMapUrl,
+            [JsonProperty("depth_map_url")] string depthTextureUrl,
             [JsonProperty("title")] string title,
-            [JsonProperty("error_message")] object errorMessage,
             [JsonProperty("obfuscated_id")] string obfuscatedId,
             [JsonProperty("created_at")] DateTime createdAt,
             [JsonProperty("updated_at")] DateTime updatedAt)
@@ -26,11 +26,10 @@ namespace BlockadeLabs.Skyboxes
             SkyboxStyleName = skyboxStyleName;
             Status = status;
             Type = type;
-            FileUrl = fileUrl;
+            MainTextureUrl = mainTextureUrl;
             ThumbUrl = thumbUrl;
-            DepthMapUrl = depthMapUrl;
+            DepthTextureUrl = depthTextureUrl;
             Title = title;
-            ErrorMessage = errorMessage;
             ObfuscatedId = obfuscatedId;
             CreatedAt = createdAt;
             UpdatedAt = updatedAt;
@@ -52,19 +51,25 @@ namespace BlockadeLabs.Skyboxes
         public string Type { get; }
 
         [JsonProperty("file_url")]
-        public string FileUrl { get; }
+        public string MainTextureUrl { get; }
+
+        [JsonIgnore]
+        public Texture2D MainTexture { get; internal set; }
 
         [JsonProperty("thumb_url")]
         public string ThumbUrl { get; }
 
+        [JsonIgnore]
+        public Texture2D Thumbnail { get; internal set; }
+
         [JsonProperty("depth_map_url")]
-        public string DepthMapUrl { get; }
+        public string DepthTextureUrl { get; }
+
+        [JsonIgnore]
+        public Texture2D DepthTexture { get; internal set; }
 
         [JsonProperty("title")]
         public string Title { get; }
-
-        [JsonProperty("error_message")]
-        public object ErrorMessage { get; }
 
         [JsonProperty("obfuscated_id")]
         public string ObfuscatedId { get; }

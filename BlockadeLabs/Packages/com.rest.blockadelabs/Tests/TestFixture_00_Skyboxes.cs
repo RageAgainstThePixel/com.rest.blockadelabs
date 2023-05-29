@@ -1,6 +1,5 @@
 using BlockadeLabs.Skyboxes;
 using NUnit.Framework;
-using System;
 using UnityEngine;
 using Task = System.Threading.Tasks.Task;
 
@@ -28,13 +27,17 @@ namespace BlockadeLabs.Tests
             var api = new BlockadeLabsClient();
             Assert.IsNotNull(api.SkyboxEndpoint);
 
-            var request = new SkyboxRequest("underwater");
-            var (texture, skyboxInfo) = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
-            Assert.IsNotNull(texture);
+            var request = new SkyboxRequest("underwater"/*, depth: true*/);
+            var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
+            Assert.IsNotNull(skyboxInfo);
+            Debug.Log(skyboxInfo.MainTextureUrl);
+            Assert.IsNotNull(skyboxInfo.MainTexture);
+            Debug.Log(skyboxInfo.DepthTextureUrl);
+            //Assert.IsNotNull(skyboxInfo.DepthTexture);
 
             var result = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxInfo.Id);
             Assert.IsNotNull(result);
-            Debug.Log($"Skybox: {result.Id} | {result.FileUrl}");
+            Debug.Log($"Skybox: {result.Id} | {result.MainTextureUrl}");
             Assert.IsTrue(skyboxInfo.Id == result.Id);
         }
     }

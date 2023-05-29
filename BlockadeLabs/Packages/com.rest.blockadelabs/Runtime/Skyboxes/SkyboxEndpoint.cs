@@ -45,14 +45,30 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="skyboxRequest"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task<Tuple<Texture2D, SkyboxInfo>> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, CancellationToken cancellationToken = default)
+        public async Task<SkyboxInfo> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, CancellationToken cancellationToken = default)
         {
             var jsonContent = JsonConvert.SerializeObject(skyboxRequest, client.JsonSerializationOptions).ToJsonStringContent();
             var response = await client.Client.PostAsync(GetUrl("/generate"), jsonContent, cancellationToken);
             var responseAsString = await response.ReadAsStringAsync();
             var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfo>(responseAsString, client.JsonSerializationOptions);
-            var texture = await Rest.DownloadTextureAsync(skyboxInfo.FileUrl, cancellationToken: cancellationToken);
-            return new Tuple<Texture2D, SkyboxInfo>(texture, skyboxInfo);
+
+            var downloadTasks = new List<Task>(2)
+            {
+                Task.Run(async () =>
+                {
+                    skyboxInfo.MainTexture = await Rest.DownloadTextureAsync(skyboxInfo.MainTextureUrl, cancellationToken: cancellationToken);
+                }, cancellationToken),
+                Task.Run(async () =>
+                {
+                    if (!string.IsNullOrWhiteSpace(skyboxInfo.DepthTextureUrl))
+                    {
+                        skyboxInfo.DepthTexture = await Rest.DownloadTextureAsync(skyboxInfo.DepthTextureUrl, cancellationToken: cancellationToken);
+                    }
+                }, cancellationToken)
+            };
+
+            await Task.WhenAll(downloadTasks);
+            return skyboxInfo;
         }
 
         /// <summary>
