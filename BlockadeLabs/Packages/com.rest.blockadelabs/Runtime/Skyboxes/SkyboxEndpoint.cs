@@ -1,23 +1,26 @@
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
 using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using UnityEngine;
-using Utilities.Rest.Extensions;
+using UnityEngine.Scripting;
 using Utilities.WebRequestRest;
 
 namespace BlockadeLabs.Skyboxes
 {
     public sealed class SkyboxEndpoint : BlockadeLabsBaseEndpoint
     {
+        [Preserve]
         private class SkyboxMetadata
         {
+            [Preserve]
             public SkyboxMetadata([JsonProperty("request")] SkyboxInfo request)
             {
                 Request = request;
             }
 
+            [Preserve]
             [JsonProperty("request")]
             public SkyboxInfo Request { get; }
         }
@@ -34,9 +37,9 @@ namespace BlockadeLabs.Skyboxes
         public async Task<IReadOnlyList<SkyboxStyle>> GetSkyboxStylesAsync(CancellationToken cancellationToken = default)
         {
             var endpoint = GetUrl("/styles");
-            var response = await client.Client.GetAsync(endpoint, cancellationToken);
-            var responseAsString = await response.ReadAsStringAsync();
-            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(responseAsString, client.JsonSerializationOptions);
+            var response = await Rest.GetAsync(endpoint, parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(response.Body, client.JsonSerializationOptions);
         }
 
         /// <summary>
@@ -47,22 +50,22 @@ namespace BlockadeLabs.Skyboxes
         /// <returns></returns>
         public async Task<SkyboxInfo> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, CancellationToken cancellationToken = default)
         {
-            var jsonContent = JsonConvert.SerializeObject(skyboxRequest, client.JsonSerializationOptions).ToJsonStringContent();
-            var response = await client.Client.PostAsync(GetUrl("/generate"), jsonContent, cancellationToken);
-            var responseAsString = await response.ReadAsStringAsync();
-            var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfo>(responseAsString, client.JsonSerializationOptions);
+            var jsonContent = JsonConvert.SerializeObject(skyboxRequest, client.JsonSerializationOptions);
+            var response = await Rest.PostAsync(GetUrl("/generate"), jsonContent, parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfo>(response.Body, client.JsonSerializationOptions);
 
             var downloadTasks = new List<Task>(2)
             {
                 Task.Run(async () =>
                 {
-                    skyboxInfo.MainTexture = await Rest.DownloadTextureAsync(skyboxInfo.MainTextureUrl, cancellationToken: cancellationToken);
+                    skyboxInfo.MainTexture = await Rest.DownloadTextureAsync(skyboxInfo.MainTextureUrl, parameters: null, cancellationToken: cancellationToken);
                 }, cancellationToken),
                 Task.Run(async () =>
                 {
                     if (!string.IsNullOrWhiteSpace(skyboxInfo.DepthTextureUrl))
                     {
-                        skyboxInfo.DepthTexture = await Rest.DownloadTextureAsync(skyboxInfo.DepthTextureUrl, cancellationToken: cancellationToken);
+                        skyboxInfo.DepthTexture = await Rest.DownloadTextureAsync(skyboxInfo.DepthTextureUrl, parameters: null, cancellationToken: cancellationToken);
                     }
                 }, cancellationToken)
             };
@@ -79,9 +82,9 @@ namespace BlockadeLabs.Skyboxes
         /// <returns><see cref="SkyboxInfo"/>.</returns>
         public async Task<SkyboxInfo> GetSkyboxInfoAsync(int id, CancellationToken cancellationToken = default)
         {
-            var response = await client.Client.GetAsync(GetUrl($"/info/{id}"), cancellationToken);
-            var responseAsString = await response.ReadAsStringAsync();
-            return JsonConvert.DeserializeObject<SkyboxMetadata>(responseAsString, client.JsonSerializationOptions).Request;
+            var response = await Rest.GetAsync(GetUrl($"/info/{id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            return JsonConvert.DeserializeObject<SkyboxMetadata>(response.Body, client.JsonSerializationOptions).Request;
         }
     }
 }

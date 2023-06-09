@@ -1,6 +1,8 @@
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
 using BlockadeLabs.Skyboxes;
 using Newtonsoft.Json;
-using System.Net.Http;
+using System.Collections.Generic;
 using System.Security.Authentication;
 using Utilities.WebRequestRest;
 
@@ -8,8 +10,8 @@ namespace BlockadeLabs
 {
     public sealed class BlockadeLabsClient : BaseClient<BlockadeLabsAuthentication, BlockadeLabsSettings>
     {
-        public BlockadeLabsClient(BlockadeLabsAuthentication authentication = null, BlockadeLabsSettings settings = null, HttpClient httpClient = null)
-            : base(authentication ?? BlockadeLabsAuthentication.Default, settings ?? BlockadeLabsSettings.Default, httpClient)
+        public BlockadeLabsClient(BlockadeLabsAuthentication authentication = null, BlockadeLabsSettings settings = null)
+            : base(authentication ?? BlockadeLabsAuthentication.Default, settings ?? BlockadeLabsSettings.Default)
         {
             JsonSerializationOptions = new JsonSerializerSettings
             {
@@ -19,20 +21,23 @@ namespace BlockadeLabs
             SkyboxEndpoint = new SkyboxEndpoint(this);
         }
 
-        protected override HttpClient SetupClient(HttpClient httpClient = null)
-        {
-            httpClient ??= new HttpClient();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "com.rest.blockadelabs");
-            httpClient.DefaultRequestHeaders.Add("X-API-Key", Authentication.Info.ApiKey);
-            return httpClient;
-        }
-
         protected override void ValidateAuthentication()
         {
             if (!HasValidAuthentication)
             {
                 throw new AuthenticationException("You must provide API authentication.  Please refer to https://github.com/RageAgainstThePixel/com.rest.blockadelabs#authentication for details.");
             }
+        }
+
+        protected override void SetupDefaultRequestHeaders()
+        {
+            DefaultRequestHeaders = new Dictionary<string, string>
+            {
+#if !UNITY_WEBGL
+                {"User-Agent", "com.rest.blockadelabs" },
+#endif
+                {"X-API-Key", Authentication.Info.ApiKey }
+            };
         }
 
         public override bool HasValidAuthentication => !string.IsNullOrWhiteSpace(Authentication?.Info?.ApiKey);
