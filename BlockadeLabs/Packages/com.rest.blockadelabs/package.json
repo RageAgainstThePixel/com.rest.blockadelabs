@@ -17,7 +17,7 @@
     "url": "https://github.com/StephenHodgson"
   },
   "dependencies": {
-    "com.utilities.rest": "2.0.0"
+    "com.utilities.rest": "2.0.1"
   },
   "publishConfig": {
     "registry": "https://package.openupm.com"
