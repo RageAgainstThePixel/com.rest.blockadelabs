@@ -4,27 +4,12 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using UnityEngine.Scripting;
 using Utilities.WebRequestRest;
 
 namespace BlockadeLabs.Skyboxes
 {
     public sealed class SkyboxEndpoint : BlockadeLabsBaseEndpoint
     {
-        [Preserve]
-        private class SkyboxMetadata
-        {
-            [Preserve]
-            public SkyboxMetadata([JsonProperty("request")] SkyboxInfo request)
-            {
-                Request = request;
-            }
-
-            [Preserve]
-            [JsonProperty("request")]
-            public SkyboxInfo Request { get; }
-        }
-
         public SkyboxEndpoint(BlockadeLabsClient client) : base(client) { }
 
         protected override string Root => "skybox";
@@ -84,7 +69,7 @@ namespace BlockadeLabs.Skyboxes
         {
             var response = await Rest.GetAsync(GetUrl($"/info/{id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate();
-            return JsonConvert.DeserializeObject<SkyboxMetadata>(response.Body, client.JsonSerializationOptions).Request;
+            return JsonConvert.DeserializeObject<SkyboxInfo>(response.Body, client.JsonSerializationOptions);
         }
     }
 }

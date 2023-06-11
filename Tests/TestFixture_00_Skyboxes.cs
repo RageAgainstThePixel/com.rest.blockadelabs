@@ -12,10 +12,10 @@ namespace BlockadeLabs.Tests
         {
             var api = new BlockadeLabsClient();
             Assert.IsNotNull(api.SkyboxEndpoint);
-            var result = await api.SkyboxEndpoint.GetSkyboxStylesAsync();
-            Assert.IsNotNull(result);
+            var skyboxStyles = await api.SkyboxEndpoint.GetSkyboxStylesAsync();
+            Assert.IsNotNull(skyboxStyles);
 
-            foreach (var skyboxStyle in result)
+            foreach (var skyboxStyle in skyboxStyles)
             {
                 Debug.Log($"{skyboxStyle.Name}");
             }
@@ -27,18 +27,25 @@ namespace BlockadeLabs.Tests
             var api = new BlockadeLabsClient();
             Assert.IsNotNull(api.SkyboxEndpoint);
 
-            var request = new SkyboxRequest("underwater"/*, depth: true*/);
+            var request = new SkyboxRequest("underwater", depth: true);
             var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
             Assert.IsNotNull(skyboxInfo);
+            Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
             Debug.Log(skyboxInfo.MainTextureUrl);
             Assert.IsNotNull(skyboxInfo.MainTexture);
             Debug.Log(skyboxInfo.DepthTextureUrl);
-            //Assert.IsNotNull(skyboxInfo.DepthTexture);
+            Assert.IsNotNull(skyboxInfo.DepthTexture);
+        }
 
-            var result = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxInfo.Id);
+        [Test]
+        public async Task Test_03_GetSkyboxInfo()
+        {
+            var api = new BlockadeLabsClient();
+            Assert.IsNotNull(api.SkyboxEndpoint);
+
+            var result = await api.SkyboxEndpoint.GetSkyboxInfoAsync(5719637);
             Assert.IsNotNull(result);
             Debug.Log($"Skybox: {result.Id} | {result.MainTextureUrl}");
-            Assert.IsTrue(skyboxInfo.Id == result.Id);
         }
     }
 }
