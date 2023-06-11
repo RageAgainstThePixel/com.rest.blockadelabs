@@ -45,7 +45,7 @@ The recommended installation method is though the unity package manager and [Ope
 - [Skyboxes](#skyboxes)
   - [Get Skybox Styles](#get-skybox-styles)
   - [Generate Skybox](#generate-skybox)
-  - [Get Skybox by Id](get-skybox)
+  - [Get Skybox by Id](#get-skybox)
 
 ### Authentication
 
