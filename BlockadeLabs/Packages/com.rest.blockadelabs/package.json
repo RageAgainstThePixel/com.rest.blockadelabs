@@ -3,7 +3,7 @@
   "displayName": "BlockadeLabs",
   "description": "A Non-Official Blockade Labs Rest Client for Unity (UPM)",
   "keywords": [],
-  "version": "1.0.0-preview.3",
+  "version": "1.0.0-preview.4",
   "unity": "2021.3",
   "documentationUrl": "https://github.com/RageAgainstThePixel/com.rest.blockadelabs#documentation",
   "changelogUrl": "https://github.com/RageAgainstThePixel/com.rest.blockadelabs/releases",
@@ -17,7 +17,7 @@
     "url": "https://github.com/StephenHodgson"
   },
   "dependencies": {
-    "com.utilities.rest": "2.0.1"
+    "com.utilities.rest": "2.0.2"
   },
   "publishConfig": {
     "registry": "https://package.openupm.com"
