@@ -1,3 +1,5 @@
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
 using BlockadeLabs.Skyboxes;
 using System;
 using System.Collections.Generic;
@@ -79,7 +81,7 @@ namespace BlockadeLabs.Demo
                 generateButton.interactable = false;
                 promptInputField.interactable = false;
                 var request = new SkyboxRequest(prompt, skyboxStyleId: skyboxOptions[skyboxStyleDropdown.value].Id);
-                var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
+                var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, cancellationToken: lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
                 skyboxMaterial.mainTexture = skyboxInfo.MainTexture;
                 Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
             }
