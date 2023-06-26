@@ -235,7 +235,6 @@ namespace BlockadeLabs.Skyboxes
             }
 
             ControlImageFileName = controlImageFileName;
-
             ControlModel = controlModel;
         }
 
