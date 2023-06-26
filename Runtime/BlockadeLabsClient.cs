@@ -36,7 +36,7 @@ namespace BlockadeLabs
 #if !UNITY_WEBGL
                 {"User-Agent", "com.rest.blockadelabs" },
 #endif
-                {"X-API-Key", Authentication.Info.ApiKey }
+                {"x-api-key", Authentication.Info.ApiKey }
             };
         }
 

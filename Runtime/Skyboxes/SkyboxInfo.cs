@@ -19,7 +19,8 @@ namespace BlockadeLabs.Skyboxes
             [JsonProperty("title")] string title,
             [JsonProperty("obfuscated_id")] string obfuscatedId,
             [JsonProperty("created_at")] DateTime createdAt,
-            [JsonProperty("updated_at")] DateTime updatedAt)
+            [JsonProperty("updated_at")] DateTime updatedAt,
+            [JsonProperty("error_message")] string errorMessage = null)
         {
             Id = id;
             SkyboxStyleId = skyboxStyleId;
@@ -33,6 +34,7 @@ namespace BlockadeLabs.Skyboxes
             ObfuscatedId = obfuscatedId;
             CreatedAt = createdAt;
             UpdatedAt = updatedAt;
+            ErrorMessage = errorMessage;
         }
 
         [JsonProperty("id")]
@@ -79,5 +81,12 @@ namespace BlockadeLabs.Skyboxes
 
         [JsonProperty("updated_at")]
         public DateTime UpdatedAt { get; }
+
+        [JsonProperty("error_message")]
+        public string ErrorMessage { get; set; }
+
+        public override string ToString() => JsonConvert.SerializeObject(this, Formatting.Indented);
+
+        public static implicit operator int(SkyboxInfo skyboxInfo) => skyboxInfo.Id;
     }
 }
