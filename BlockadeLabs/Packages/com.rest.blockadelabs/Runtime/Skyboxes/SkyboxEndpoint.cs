@@ -3,6 +3,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -51,7 +52,7 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="skyboxRequest"><see cref="SkyboxRequest"/>.</param>
         /// <param name="pollingInterval">Optional, polling interval in seconds.</param>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
-        /// <returns></returns>
+        /// <returns><see cref="SkyboxInfo"/>.</returns>
         public async Task<SkyboxInfo> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, int? pollingInterval = null, CancellationToken cancellationToken = default)
         {
             var formData = new WWWForm();
@@ -82,8 +83,21 @@ namespace BlockadeLabs.Skyboxes
                 formData.AddField("return_depth", skyboxRequest.Depth.ToString());
             }
 
+            if (skyboxRequest.ControlImage != null)
+            {
+                if (!string.IsNullOrWhiteSpace(skyboxRequest.ControlModel))
+                {
+                    formData.AddField("control_model", skyboxRequest.ControlModel);
+                }
+
+                using var imageData = new MemoryStream();
+                await skyboxRequest.ControlImage.CopyToAsync(imageData, cancellationToken);
+                formData.AddBinaryData("control_image", imageData.ToArray(), skyboxRequest.ControlImageFileName);
+                skyboxRequest.Dispose();
+            }
+
             var response = await Rest.PostAsync(GetUrl("skybox"), formData, parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate(true);
+            response.Validate();
             var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfo>(response.Body, client.JsonSerializationOptions);
 
             while (!cancellationToken.IsCancellationRequested)
