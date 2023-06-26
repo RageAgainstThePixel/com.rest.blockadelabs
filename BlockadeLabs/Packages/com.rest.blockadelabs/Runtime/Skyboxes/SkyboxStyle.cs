@@ -39,5 +39,7 @@ namespace BlockadeLabs.Skyboxes
 
         [JsonProperty("sort_order")]
         public int SortOrder { get; }
+
+        public static implicit operator int(SkyboxStyle style) => style.Id;
     }
 }

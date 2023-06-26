@@ -79,7 +79,7 @@ namespace BlockadeLabs.Demo
                 generateButton.interactable = false;
                 promptInputField.interactable = false;
                 var request = new SkyboxRequest(prompt, skyboxStyleId: skyboxOptions[skyboxStyleDropdown.value].Id);
-                var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
+                var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, cancellationToken: lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
                 skyboxMaterial.mainTexture = skyboxInfo.MainTexture;
                 Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
             }

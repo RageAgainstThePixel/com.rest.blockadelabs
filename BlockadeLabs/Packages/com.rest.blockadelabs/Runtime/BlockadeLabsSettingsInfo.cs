@@ -5,7 +5,7 @@ namespace BlockadeLabs
 {
     public sealed class BlockadeLabsSettingsInfo : ISettingsInfo
     {
-        internal const string DefaultDomain = "blockade.cloudshell.run";
+        internal const string DefaultDomain = "backend.blockadelabs.com";
         internal const string DefaultVersion = "v1";
 
         public BlockadeLabsSettingsInfo()
