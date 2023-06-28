@@ -82,8 +82,11 @@ _ReSharper.Caches
 artifacts/
 StreamingAssets/
 StreamingAssets.meta
+BlockadeLabs/ProjectSettings/SceneTemplateSettings.json
 BlockadeLabs/Assets/Resources
 BlockadeLabs/Assets/Resources.meta
 BlockadeLabs/Assets/Plugins
 BlockadeLabs/Assets/Plugins.meta
-BlockadeLabs/ProjectSettings/SceneTemplateSettings.json
+BlockadeLabs/Assets/Samples.meta
+BlockadeLabs/Assets/Samples/BlockadeLabs
+BlockadeLabs/Assets/Samples/BlockadeLabs.meta

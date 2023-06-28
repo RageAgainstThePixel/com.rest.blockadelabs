@@ -12,7 +12,7 @@ I am not affiliated with BlockadeLabs and an account with api access is required
 
 Requires Unity 2021.3 LTS or higher.
 
-The recommended installation method is though the unity package manager and [OpenUPM](https://openupm.com/packages/com.openai.unity).
+The recommended installation method is though the unity package manager and [OpenUPM](https://openupm.com/packages/com.rest.blockadelabs).
 
 ### Via Unity Package Manager and OpenUPM
 
@@ -35,6 +35,7 @@ The recommended installation method is though the unity package manager and [Ope
 - Add package from git url: `https://github.com/RageAgainstThePixel/com.rest.blockadelabs.git#upm`
   > Note: this repo has dependencies on other repositories! You are responsible for adding these on your own.
   - [com.utilities.async](https://github.com/RageAgainstThePixel/com.utilities.async)
+  - [com.utilities.extensions](https://github.com/RageAgainstThePixel/com.utilities.extensions)
   - [com.utilities.rest](https://github.com/RageAgainstThePixel/com.utilities.rest)
 
 ## Documentation
@@ -46,6 +47,10 @@ The recommended installation method is though the unity package manager and [Ope
   - [Get Skybox Styles](#get-skybox-styles)
   - [Generate Skybox](#generate-skybox)
   - [Get Skybox by Id](#get-skybox)
+  - [Delete Skybox by Id](#delete-skybox)
+  - [Get Skybox History](#get-skybox-history)
+  - [Cancel Skybox Generation](#cancel-skybox-generation)
+  - [Cancel All Pending Skybox Generations](#cancel-all-pending-skybox-generations)
 
 ### Authentication
 
@@ -108,7 +113,7 @@ var api = new BlockadeLabsClient(BlockadeLabsAuthentication.Default.LoadFromEnvi
 
 ### Skyboxes
 
-#### [Get Skybox Styles](https://blockade.cloudshell.run/redoc#tag/skybox/operation/Get_Skybox_Styles_api_v1_skybox_styles_get)
+#### [Get Skybox Styles](https://api-documentation.blockadelabs.com/api/skybox.html#get-skybox-styles)
 
 Returns the list of predefined styles that can influence the overall aesthetic of your skybox generation.
 
@@ -122,23 +127,73 @@ foreach (var skyboxStyle in skyboxStyles)
 }
 ```
 
-#### [Generate Skybox](https://blockade.cloudshell.run/redoc#tag/skybox/operation/Generate_Skybox_api_v1_skybox_generate_post)
+#### [Generate Skybox](https://api-documentation.blockadelabs.com/api/skybox.html#generate-skybox)
 
-Generate a skybox image
+Generate a skybox.
 
 ```csharp
 var api = new BlockadeLabsClient();
-var request = new SkyboxRequest("underwater", depth: true);
+var request = new SkyboxRequest("mars", depth: true);
 var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
 skyboxMaterial.mainTexture = skyboxInfo.MainTexture;
 skyboxMaterial.depthTexture = skyboxInfo.DepthTexture;
 ```
 
-#### [Get Skybox](https://blockade.cloudshell.run/redoc#tag/skybox/operation/Get_Skybox_By_Id_api_v1_skybox_info__id__get)
+#### [Get Skybox](https://api-documentation.blockadelabs.com/api/skybox.html#get-skybox-by-id)
 
 Returns the skybox metadata for the given skybox id.
 
 ```csharp
-var skyboxInfo = await api.SkyboxEndpoint.GetSkyboxInfoAsync("skybox-id");
+var skyboxId = 42;
+var skyboxInfo = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxId);
 Debug.Log($"Skybox: {result.Id} | {result.MainTextureUrl}");
+// Note: If you wish to use the returned skybox textures you'll need to additionally call await SkyboxInfo.LoadTexturesAsync(); before you can assign them to a material property.
+await skyboxInfo.LoadTexturesAsync();
+skyboxMaterial.mainTexture = skyboxInfo.MainTexture;
+skyboxMaterial.depthTexture = skyboxInfo.DepthTexture;
+```
+
+#### [Delete Skybox](https://api-documentation.blockadelabs.com/api/skybox.html#delete)
+
+Deletes a skybox by id.
+
+```csharp
+var skyboxId = 42;
+var result = await api.SkyboxEndpoint.DeleteSkyboxAsync(skybox);
+// result == true
+```
+
+#### [Get Skybox History](https://api-documentation.blockadelabs.com/api/skybox.html#get-history)
+
+Gets the previously generated skyboxes.
+
+```csharp
+var history = await api.SkyboxEndpoint.GetSkyboxHistoryAsync();
+Debug.Log($"Found {history.TotalCount} skyboxes");
+
+foreach (var skybox in history.Skyboxes)
+{
+    Debug.Log($"{skybox.Id} {skybox.Title} status: {skybox.Status}");
+}
+```
+
+#### [Cancel Skybox Generation](https://api-documentation.blockadelabs.com/api/skybox.html#cancel-generation)
+
+Cancels a pending skybox generation request by id.
+
+```csharp
+var skyboxId = 42;
+var result = await CancelSkyboxGenerationAsync(skyboxId);
+// result == true
+```
+
+> Note: This is automatically done when cancelling a skybox generation using cancellation token.
+
+#### [Cancel All Pending Skybox Generations](https://api-documentation.blockadelabs.com/api/skybox.html#cancel-all-pending-generations)
+
+Cancels ALL pending skybox generation requests.
+
+```csharp
+var result = await api.SkyboxEndpoint.CancelAllPendingSkyboxGenerationsAsync();
+Debug.Log(result ? "All pending generations successfully cancelled" : "No pending generations");
 ```
