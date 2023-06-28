@@ -6,6 +6,6 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Demo/SkyboxDemo.unity
+    path: Assets/Samples/BlockadeLabs/1.0.0/Skybox Generation/SkyboxSample.unity
     guid: c64e45bae6fa19d4a90c4037e84fbae5
   m_configObjects: {}

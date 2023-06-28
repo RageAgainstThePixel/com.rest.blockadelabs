@@ -1,6 +1,6 @@
 {
-    "name": "BlockadeLabs.Demo",
-    "rootNamespace": "BlockadeLabs.Demo",
+    "name": "BlockadeLabs.Samples.Skybox",
+    "rootNamespace": "BlockadeLabs.Samples.Skybox",
     "references": [
         "GUID:0e64303a4898a4d4ba94306e88e6c025",
         "GUID:a6609af893242c7438d701ddd4cce46a",

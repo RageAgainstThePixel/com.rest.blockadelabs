@@ -10,9 +10,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using Utilities.Extensions;
 
-namespace BlockadeLabs.Demo
+namespace BlockadeLabs.Samples.Skybox
 {
-    public class SkyboxDemo : MonoBehaviour
+    public class SkyboxBehaviour : MonoBehaviour
     {
         [SerializeField]
         private TMP_InputField promptInputField;

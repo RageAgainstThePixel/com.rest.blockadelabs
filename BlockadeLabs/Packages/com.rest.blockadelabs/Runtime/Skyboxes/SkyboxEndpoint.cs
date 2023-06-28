@@ -29,6 +29,28 @@ namespace BlockadeLabs.Skyboxes
             public SkyboxInfo SkyboxInfo { get; }
         }
 
+        [Preserve]
+        private class SkyboxOperation
+        {
+            [Preserve]
+            [JsonConstructor]
+            public SkyboxOperation(
+                [JsonProperty("success")] string success,
+                [JsonProperty("error")] string error)
+            {
+                Success = success;
+                Error = error;
+            }
+
+            [Preserve]
+            [JsonProperty("success")]
+            public string Success { get; }
+
+            [Preserve]
+            [JsonProperty("Error")]
+            public string Error { get; }
+        }
+
         public SkyboxEndpoint(BlockadeLabsClient client) : base(client) { }
 
         protected override string Root => string.Empty;
@@ -40,8 +62,7 @@ namespace BlockadeLabs.Skyboxes
         /// <returns>A list of <see cref="SkyboxStyle"/>s.</returns>
         public async Task<IReadOnlyList<SkyboxStyle>> GetSkyboxStylesAsync(CancellationToken cancellationToken = default)
         {
-            var endpoint = GetUrl("skybox/styles");
-            var response = await Rest.GetAsync(endpoint, parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            var response = await Rest.GetAsync(GetUrl("skybox/styles"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate();
             return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(response.Body, client.JsonSerializationOptions);
         }
@@ -102,11 +123,11 @@ namespace BlockadeLabs.Skyboxes
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(pollingInterval ?? 3 * 1000, cancellationToken)
+                await Task.Delay(pollingInterval ?? 3 * 1000, CancellationToken.None)
                     .ConfigureAwait(true); // Configure await to make sure we're still in Unity context
-                skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo, cancellationToken);
+                skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo, CancellationToken.None);
 
-                if (skyboxInfo.Status is "pending" or "processing")
+                if (skyboxInfo.Status is Status.Pending or Status.Processing or Status.Dispatched)
                 {
                     continue;
                 }
@@ -114,27 +135,24 @@ namespace BlockadeLabs.Skyboxes
                 break;
             }
 
-            if (skyboxInfo.Status != "complete")
+            if (cancellationToken.IsCancellationRequested)
+            {
+                var cancelResult = await CancelSkyboxGenerationAsync(skyboxInfo, CancellationToken.None);
+
+                if (!cancelResult)
+                {
+                    throw new Exception($"Failed to cancel generation for {skyboxInfo.Id}");
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (skyboxInfo.Status != Status.Complete)
             {
                 throw new Exception($"Failed to generate skybox! {skyboxInfo.Id} -> {skyboxInfo.Status}\nError: {skyboxInfo.ErrorMessage}\n{skyboxInfo}");
             }
 
-            var downloadTasks = new List<Task>(2)
-            {
-                Task.Run(async () =>
-                {
-                    skyboxInfo.MainTexture = await Rest.DownloadTextureAsync(skyboxInfo.MainTextureUrl, parameters: null, cancellationToken: cancellationToken);
-                }, cancellationToken),
-                Task.Run(async () =>
-                {
-                    if (!string.IsNullOrWhiteSpace(skyboxInfo.DepthTextureUrl))
-                    {
-                        skyboxInfo.DepthTexture = await Rest.DownloadTextureAsync(skyboxInfo.DepthTextureUrl, parameters: null, cancellationToken: cancellationToken);
-                    }
-                }, cancellationToken)
-            };
-
-            await Task.WhenAll(downloadTasks);
+            await skyboxInfo.LoadTexturesAsync(cancellationToken);
             return skyboxInfo;
         }
 
@@ -149,6 +167,86 @@ namespace BlockadeLabs.Skyboxes
             var response = await Rest.GetAsync(GetUrl($"imagine/requests/{id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate();
             return JsonConvert.DeserializeObject<SkyboxInfoRequest>(response.Body, client.JsonSerializationOptions).SkyboxInfo;
+        }
+
+        /// <summary>
+        /// Deletes a skybox by id.
+        /// </summary>
+        /// <param name="id">The id of the skybox.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>True, if skybox was successfully deleted.</returns>
+        public async Task<bool> DeleteSkyboxAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var response = await Rest.DeleteAsync(GetUrl($"imagine/deleteImagine/{id}"), new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, client.JsonSerializationOptions);
+
+            const string successStatus = "Item deleted successfully";
+
+            if (skyboxOp is not { Success: successStatus })
+            {
+                throw new Exception($"Failed to cancel generation for skybox {id}!\n{skyboxOp?.Error}");
+            }
+
+            return skyboxOp.Success.Equals(successStatus);
+        }
+
+        /// <summary>
+        /// Gets the previously generated skyboxes.
+        /// </summary>
+        /// <param name="parameters">Optional, <see cref="SkyboxHistoryParameters"/>.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns><see cref="SkyboxHistory"/>.</returns>
+        public async Task<SkyboxHistory> GetSkyboxHistoryAsync(SkyboxHistoryParameters parameters = null, CancellationToken cancellationToken = default)
+        {
+            var historyRequest = parameters ?? new SkyboxHistoryParameters();
+            var response = await Rest.GetAsync(GetUrl($"imagine/myRequests{historyRequest}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            return JsonConvert.DeserializeObject<SkyboxHistory>(response.Body, client.JsonSerializationOptions);
+        }
+
+        /// <summary>
+        /// Cancels a pending skybox generation request by id.
+        /// </summary>
+        /// <param name="id">The id of the skybox.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>True, if generation was cancelled.</returns>
+        public async Task<bool> CancelSkyboxGenerationAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var response = await Rest.DeleteAsync(GetUrl($"imagine/requests/{id}"), new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, client.JsonSerializationOptions);
+
+            if (skyboxOp is not { Success: "true" })
+            {
+                throw new Exception($"Failed to cancel generation for skybox {id}!\n{skyboxOp?.Error}");
+            }
+
+            return skyboxOp.Success.Equals("true");
+        }
+
+        /// <summary>
+        /// Cancels ALL pending skybox generation requests.
+        /// </summary>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        public async Task<bool> CancelAllPendingSkyboxGenerationsAsync(CancellationToken cancellationToken = default)
+        {
+            var response = await Rest.DeleteAsync(GetUrl("imagine/requests/pending"), new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, client.JsonSerializationOptions);
+
+            if (skyboxOp is not { Success: "true" })
+            {
+                if (skyboxOp != null &&
+                    skyboxOp.Error.Contains("You don't have any pending"))
+                {
+                    return false;
+                }
+
+                throw new Exception($"Failed to cancel all pending skybox generations!\n{skyboxOp?.Error}");
+            }
+
+            return skyboxOp.Success.Equals("true");
         }
     }
 }
