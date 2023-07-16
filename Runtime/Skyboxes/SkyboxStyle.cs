@@ -1,9 +1,12 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Newtonsoft.Json;
+using System;
+using UnityEngine;
 
 namespace BlockadeLabs.Skyboxes
 {
+    [Serializable]
     public sealed class SkyboxStyle
     {
         [JsonConstructor]
@@ -13,22 +16,27 @@ namespace BlockadeLabs.Skyboxes
             [JsonProperty("max-char")] string maxChar,
             [JsonProperty("negative-text-max-char")] int negativeTextMaxChar,
             [JsonProperty("image")] string image,
-            [JsonProperty("sort_order")] int sortOrder
-        )
+            [JsonProperty("sort_order")] int sortOrder)
         {
-            Id = id;
-            Name = name;
+            this.id = id;
+            this.name = name;
             MaxChar = maxChar;
             NegativeTextMaxChar = negativeTextMaxChar;
             Image = image;
             SortOrder = sortOrder;
         }
 
-        [JsonProperty("id")]
-        public int Id { get; }
+        [SerializeField]
+        private string name;
 
         [JsonProperty("name")]
-        public string Name { get; }
+        public string Name => name;
+
+        [SerializeField]
+        private int id;
+
+        [JsonProperty("id")]
+        public int Id => id;
 
         [JsonProperty("max-char")]
         public string MaxChar { get; }
