@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
-using UnityEditor.VersionControl;
 using UnityEngine;
 using Utilities.Async;
 using Utilities.WebRequestRest;
@@ -83,7 +82,7 @@ namespace BlockadeLabs.Editor
 
         private static string editorDownloadDirectory = string.Empty;
 
-        private static bool hasFetchedSkyboxStyles;
+        private static bool isGeneratingSkybox;
 
         private static IReadOnlyList<SkyboxStyle> skyboxStyles = new List<SkyboxStyle>();
 
@@ -91,9 +90,17 @@ namespace BlockadeLabs.Editor
 
         private static SkyboxStyle currentSkyboxStyleSelection;
 
+        private static bool isFetchingSkyboxStyles;
+        private static bool hasFetchedSkyboxStyles;
+
         private static bool hasFetchedHistory;
+        private static bool isFetchingSkyboxHistory;
 
         private static SkyboxHistory history;
+
+        private static int page;
+
+        private static int limit = 100;
 
         #endregion static content
 
@@ -286,8 +293,6 @@ namespace BlockadeLabs.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        private static bool isFetchingSkyboxStyles;
-
         private static async void FetchSkyboxStyles()
         {
             if (isFetchingSkyboxStyles) { return; }
@@ -307,8 +312,6 @@ namespace BlockadeLabs.Editor
                 isFetchingSkyboxStyles = false;
             }
         }
-
-        private static bool isGeneratingSkybox;
 
         private async void GenerateSkybox()
         {
@@ -360,7 +363,7 @@ namespace BlockadeLabs.Editor
             }
         }
 
-        private static ConcurrentDictionary<int, SkyboxInfo> loadingSkyboxes = new ConcurrentDictionary<int, SkyboxInfo>();
+        private static readonly ConcurrentDictionary<int, SkyboxInfo> loadingSkyboxes = new ConcurrentDictionary<int, SkyboxInfo>();
 
         private static async void SaveSkyboxAsset(SkyboxInfo skyboxInfo)
         {
@@ -465,21 +468,36 @@ namespace BlockadeLabs.Editor
             { //Header
                 EditorGUILayout.LabelField("History", EditorStyles.boldLabel, wideColumnWidthOption);
 
-                //if (history != null && GUILayout.Button("Prev Page"))
-                //{
-                //    page--;
-                //}
+                GUI.enabled = !isFetchingSkyboxHistory;
+                if (history != null && page > 0 && GUILayout.Button("Prev Page"))
+                {
+                    page--;
+                    EditorApplication.delayCall += FetchSkyboxHistory;
+                }
 
-                //if (history is { HasMore: true } && GUILayout.Button("Next Page"))
-                //{
-                //    page++;
-                //}
+                if (history is { HasMore: true } && GUILayout.Button("Next Page"))
+                {
+                    page++;
+                    EditorApplication.delayCall += FetchSkyboxHistory;
+                }
 
+                EditorGUI.BeginChangeCheck();
                 limit = EditorGUILayout.IntField("page items", limit);
 
-                GUILayout.FlexibleSpace();
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (limit > 100)
+                    {
+                        limit = 100;
+                    }
 
-                GUI.enabled = !isFetchingSkyboxHistory;
+                    if (limit < 1)
+                    {
+                        limit = 1;
+                    }
+                }
+
+                GUILayout.FlexibleSpace();
 
                 if (GUILayout.Button(refreshContent, defaultColumnWidthOption))
                 {
@@ -558,12 +576,6 @@ namespace BlockadeLabs.Editor
             EditorGUILayout.Space();
         }
 
-        private static bool isFetchingSkyboxHistory;
-
-        // private static int page;
-
-        private static int limit = 9999;
-
         private static async void FetchSkyboxHistory()
         {
             if (isFetchingSkyboxHistory) { return; }
@@ -571,7 +583,8 @@ namespace BlockadeLabs.Editor
 
             try
             {
-                history = await api.SkyboxEndpoint.GetSkyboxHistoryAsync(new SkyboxHistoryParameters { Limit = limit });
+                history = await api.SkyboxEndpoint.GetSkyboxHistoryAsync(new SkyboxHistoryParameters { Limit = limit, Offset = page });
+                //Debug.Log($"history item count: {history.TotalCount} | hasMore? {history.HasMore}");
             }
             catch (Exception e)
             {

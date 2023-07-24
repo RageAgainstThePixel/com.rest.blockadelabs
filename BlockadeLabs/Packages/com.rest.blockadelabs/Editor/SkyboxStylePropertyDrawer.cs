@@ -59,18 +59,18 @@ namespace BlockadeLabs.Editor
 
             // dropdown
             var index = -1;
-            dynamic currentVoiceOption = null;
+            dynamic currentOption = null;
 
             if (id.intValue > 0)
             {
-                currentVoiceOption = styles?.FirstOrDefault(style => style.Id.ToString() == id.intValue.ToString());
+                currentOption = styles?.FirstOrDefault(style => style.Id.ToString() == id.intValue.ToString());
             }
 
-            if (currentVoiceOption != null)
+            if (currentOption != null)
             {
                 for (var i = 0; i < options.Length; i++)
                 {
-                    if (options[i].tooltip.Contains(currentVoiceOption.Id.ToString()))
+                    if (options[i].tooltip.Contains(currentOption.Id.ToString()))
                     {
                         index = i;
                         break;
@@ -83,9 +83,9 @@ namespace BlockadeLabs.Editor
 
             if (EditorGUI.EndChangeCheck())
             {
-                currentVoiceOption = styles?.FirstOrDefault(style => options[index].text.Contains(style.Name));
-                id.intValue = currentVoiceOption!.Id;
-                name.stringValue = currentVoiceOption!.Name;
+                currentOption = styles?.FirstOrDefault(style => options[index].text.Contains(style.Name));
+                id.intValue = currentOption!.Id;
+                name.stringValue = currentOption!.Name;
             }
         }
 
