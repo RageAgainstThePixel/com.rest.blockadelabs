@@ -1,3 +1,5 @@
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
 using BlockadeLabs.Skyboxes;
 using System;
 using System.Collections.Concurrent;
@@ -6,8 +8,11 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Video;
 using Utilities.Async;
 using Utilities.WebRequestRest;
+using Object = UnityEngine.Object;
+using Progress = UnityEditor.Progress;
 using Task = System.Threading.Tasks.Task;
 
 namespace BlockadeLabs.Editor
@@ -93,6 +98,11 @@ namespace BlockadeLabs.Editor
         private static bool isFetchingSkyboxStyles;
         private static bool hasFetchedSkyboxStyles;
 
+        private static IReadOnlyList<SkyboxExportOption> skyboxExportOptions = new List<SkyboxExportOption>();
+
+        private static bool isFetchingSkyboxExportOptions;
+        private static bool hasFetchedSkyboxExportOptions;
+
         private static bool hasFetchedHistory;
         private static bool isFetchingSkyboxHistory;
 
@@ -118,7 +128,7 @@ namespace BlockadeLabs.Editor
 
         private int seed;
 
-        private bool depth;
+        private bool enhancePrompt;
 
         private Texture2D controlImage;
 
@@ -145,6 +155,12 @@ namespace BlockadeLabs.Editor
             {
                 hasFetchedSkyboxStyles = true;
                 FetchSkyboxStyles();
+            }
+
+            if (!hasFetchedSkyboxExportOptions)
+            {
+                hasFetchedSkyboxExportOptions = true;
+                FetchSkyboxExportOptions();
             }
 
             if (!hasFetchedHistory)
@@ -246,8 +262,8 @@ namespace BlockadeLabs.Editor
             EditorGUILayout.LabelField("Negative text");
             negativeText = EditorGUILayout.TextArea(negativeText);
             EditorGUILayout.Space();
+            enhancePrompt = EditorGUILayout.Toggle("Enhance Prompt", enhancePrompt);
             seed = EditorGUILayout.IntField("Seed", seed);
-            depth = EditorGUILayout.Toggle("Depth", depth);
             controlImage = EditorGUILayout.ObjectField(new GUIContent("Control Image"), controlImage, typeof(Texture2D), false) as Texture2D;
 
             EditorGUILayout.BeginHorizontal();
@@ -313,10 +329,30 @@ namespace BlockadeLabs.Editor
             }
         }
 
+        private static async void FetchSkyboxExportOptions()
+        {
+            if (isFetchingSkyboxExportOptions) { return; }
+            isFetchingSkyboxExportOptions = true;
+
+            try
+            {
+                skyboxExportOptions = await api.SkyboxEndpoint.GetExportOptionsAsync();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
+            finally
+            {
+                isFetchingSkyboxExportOptions = false;
+            }
+        }
+
         private async void GenerateSkybox()
         {
             if (isGeneratingSkybox) { return; }
             isGeneratingSkybox = true;
+            int? progressId = null;
 
             try
             {
@@ -337,19 +373,20 @@ namespace BlockadeLabs.Editor
                     ? new SkyboxRequest(
                         prompt: promptText,
                         negativeText: negativeText,
+                        enhancePrompt: enhancePrompt,
                         skyboxStyleId: currentSkyboxStyleSelection?.Id,
-                        seed: seed,
-                    depth: depth)
+                        seed: seed)
                     : new SkyboxRequest(
                         prompt: promptText,
                         negativeText: negativeText,
+                        enhancePrompt: enhancePrompt,
                         controlImage: controlImage,
                         skyboxStyleId: currentSkyboxStyleSelection?.Id,
-                        seed: seed,
-                        depth: depth);
+                        seed: seed);
                 promptText = string.Empty;
                 negativeText = string.Empty;
                 controlImage = null;
+                progressId = Progress.Start("Generating Skybox", promptText, options: Progress.Options.Indefinite);
                 var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(skyboxRequest);
                 await SaveSkyboxAssetAsync(skyboxInfo);
             }
@@ -359,30 +396,48 @@ namespace BlockadeLabs.Editor
             }
             finally
             {
+                if (progressId.HasValue)
+                {
+                    Progress.Finish(progressId.Value);
+                }
+
                 isGeneratingSkybox = false;
+                FetchSkyboxHistory();
             }
         }
 
-        private static readonly ConcurrentDictionary<int, SkyboxInfo> loadingSkyboxes = new ConcurrentDictionary<int, SkyboxInfo>();
+        private static readonly ConcurrentDictionary<string, SkyboxInfo> loadingSkyboxes = new ConcurrentDictionary<string, SkyboxInfo>();
 
-        private static async void SaveSkyboxAsset(SkyboxInfo skyboxInfo)
+        private static async void SaveAllSkyboxAssets(SkyboxInfo skyboxInfo)
         {
-            loadingSkyboxes.TryAdd(skyboxInfo.Id, skyboxInfo);
-            await skyboxInfo.LoadTexturesAsync();
-            await SaveSkyboxAssetAsync(skyboxInfo);
-            loadingSkyboxes.TryRemove(skyboxInfo.Id, out _);
+            if (loadingSkyboxes.TryAdd(skyboxInfo.ObfuscatedId, skyboxInfo))
+            {
+                await skyboxInfo.LoadAssetsAsync();
+                await SaveSkyboxAssetAsync(skyboxInfo);
+                loadingSkyboxes.TryRemove(skyboxInfo.ObfuscatedId, out _);
+            }
+            else
+            {
+                Debug.LogWarning($"Skybox {skyboxInfo.ObfuscatedId} is already loading assets. Try again later.");
+            }
         }
 
         private static async Task SaveSkyboxAssetAsync(SkyboxInfo skyboxInfo)
         {
+            await Awaiters.UnityMainThread;
+
             if (skyboxInfo.MainTexture == null)
             {
                 Debug.LogError("No main texture found!");
                 return;
             }
 
-            await Awaiters.UnityMainThread;
-            var directory = editorDownloadDirectory.Replace(Application.dataPath, "Assets");
+            var directory = GetLocalPath(editorDownloadDirectory);
+
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
 
             var mainTexturePath = string.Empty;
             var depthTexturePath = string.Empty;
@@ -390,7 +445,7 @@ namespace BlockadeLabs.Editor
 
             if (mainTextureBytes.Length > 0)
             {
-                mainTexturePath = $"{directory}/{skyboxInfo.MainTexture!.name}.png";
+                mainTexturePath = $"{directory}/{skyboxInfo.ObfuscatedId}-albedo.png";
                 Debug.Log(mainTexturePath);
             }
 
@@ -398,11 +453,11 @@ namespace BlockadeLabs.Editor
 
             if (depthTextureBytes.Length > 0)
             {
-                depthTexturePath = $"{directory}/{skyboxInfo.DepthTexture!.name}.depth.png";
+                depthTexturePath = $"{directory}/{skyboxInfo.ObfuscatedId}-depth.png";
                 Debug.Log(depthTexturePath);
             }
 
-            var importTasks = new List<Task>(2)
+            var importTasks = new List<Task>
             {
                 Task.Run(async () =>
                 {
@@ -420,36 +475,57 @@ namespace BlockadeLabs.Editor
                 })
             };
 
-            await Task.WhenAll(importTasks);
-            await Awaiters.UnityMainThread;
-
-            if (AssetImporter.GetAtPath(mainTexturePath) is TextureImporter mainTextureImporter)
-            {
-                mainTextureImporter.alphaIsTransparency = false;
-                mainTextureImporter.alphaSource = TextureImporterAlphaSource.None;
-            }
-
-            if (AssetImporter.GetAtPath(depthTexturePath) is TextureImporter depthTextureImporter)
-            {
-                depthTextureImporter.alphaIsTransparency = false;
-                depthTextureImporter.alphaSource = TextureImporterAlphaSource.None;
-            }
+            await Task.WhenAll(importTasks).ConfigureAwait(true);
+            AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
 
             EditorApplication.delayCall += () =>
             {
-                AssetDatabase.Refresh();
-                var mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(mainTexturePath);
-                EditorGUIUtility.PingObject(mainTexture);
+                SetSkyboxTextureImportSettings(mainTexturePath);
+
+                if (!string.IsNullOrWhiteSpace(depthTexturePath))
+                {
+                    SetSkyboxTextureImportSettings(depthTexturePath);
+                }
+
+                EditorApplication.delayCall += () =>
+                {
+                    var mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(mainTexturePath);
+                    EditorGUIUtility.PingObject(mainTexture);
+                    EditorApplication.delayCall += AssetDatabase.SaveAssets;
+                };
             };
+        }
+
+        private static void SetSkyboxTextureImportSettings(string path)
+        {
+            if (AssetImporter.GetAtPath(path) is TextureImporter textureImporter)
+            {
+                textureImporter.isReadable = true;
+                textureImporter.alphaIsTransparency = false;
+                textureImporter.mipmapEnabled = false;
+                textureImporter.maxTextureSize = 6144;
+                textureImporter.wrapMode = TextureWrapMode.Clamp;
+                textureImporter.npotScale = TextureImporterNPOTScale.None;
+                textureImporter.alphaSource = TextureImporterAlphaSource.None;
+                textureImporter.textureCompression = TextureImporterCompression.Uncompressed;
+                textureImporter.SaveAndReimport();
+            }
         }
 
         private static async Task SaveTextureAsync(string path, byte[] pngBytes)
         {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+                File.Delete($"{path}.meta");
+            }
+
             var fileStream = File.OpenWrite(path);
 
             try
             {
                 await fileStream.WriteAsync(pngBytes, 0, pngBytes.Length);
+                await fileStream.FlushAsync();
             }
             catch (Exception e)
             {
@@ -457,6 +533,7 @@ namespace BlockadeLabs.Editor
             }
             finally
             {
+                fileStream.Close();
                 await fileStream.DisposeAsync();
             }
         }
@@ -518,62 +595,240 @@ namespace BlockadeLabs.Editor
 
             foreach (var skybox in history.Skyboxes)
             {
-                if (Rest.TryGetFileNameFromUrl(skybox.MainTextureUrl, out var mainTextureFilePath))
-                {
-                    mainTextureFilePath = Path.Combine(editorDownloadDirectory, mainTextureFilePath).Replace("\\", "/").Replace(".jpg", ".png");
-                }
-
-                if (Rest.TryGetFileNameFromUrl(skybox.DepthTextureUrl, out var depthTextureFilePath))
-                {
-                    depthTextureFilePath = Path.Combine(editorDownloadDirectory, $"{depthTextureFilePath}").Replace("\\", "/").Replace(".jpg", ".depth.png");
-                }
+                GUILayout.Space(TabWidth);
+                Utilities.Extensions.Editor.EditorGUILayoutExtensions.Divider();
+                var albedoPath = GetFullLocalPath(skybox, "albedo", ".png");
+                var depthPath = GetFullLocalPath(skybox, "depth", ".png");
 
                 EditorGUILayout.BeginVertical();
-                EditorGUILayout.LabelField($"{skybox.Title} {skybox.Status} {skybox.CreatedAt}");
+                EditorGUILayout.BeginHorizontal();
+                { // skybox title
+                    EditorGUILayout.LabelField($"{skybox.Title} {skybox.Status} {skybox.CreatedAt}");
 
-                if (!File.Exists(mainTextureFilePath))
-                {
-                    GUI.enabled = !loadingSkyboxes.TryGetValue(skybox.Id, out _);
-
-                    if (GUILayout.Button("Download", defaultColumnWidthOption))
+                    if (GUILayout.Button("Delete", defaultColumnWidthOption))
                     {
                         EditorApplication.delayCall += () =>
                         {
-                            SaveSkyboxAsset(skybox);
+                            DeleteSkybox(skybox, albedoPath, depthPath);
                         };
                     }
-
-                    GUI.enabled = true;
                 }
-                else
-                {
-                    var mainLocalPath = mainTextureFilePath.Replace(Application.dataPath, "Assets");
-                    var mainImageAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(mainLocalPath);
-
-                    if (mainImageAsset != null)
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                { // Image and Depth textures
+                    if (!File.Exists(albedoPath))
                     {
-                        EditorGUILayout.ObjectField(mainImageAsset, typeof(Texture2D), false);
+                        GUI.enabled = !loadingSkyboxes.TryGetValue(skybox.ObfuscatedId, out _);
+
+                        if (GUILayout.Button("Download", defaultColumnWidthOption))
+                        {
+                            EditorApplication.delayCall += () =>
+                            {
+                                SaveAllSkyboxAssets(skybox);
+                            };
+                        }
+
+                        GUI.enabled = true;
+                    }
+                    else
+                    {
+                        var mainImageAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(GetLocalPath(albedoPath));
+
+                        if (mainImageAsset != null)
+                        {
+                            EditorGUILayout.ObjectField(mainImageAsset, typeof(Texture2D), false, GUILayout.Height(128f), GUILayout.Width(256f));
+                        }
+                        else
+                        {
+                            if (!loadingSkyboxes.TryGetValue(skybox.ObfuscatedId, out _))
+                            {
+                                EditorGUILayout.HelpBox($"Failed to load texture at {albedoPath}!", MessageType.Error);
+                            }
+                        }
+
+                        if (File.Exists(depthPath))
+                        {
+                            var depthImageAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(GetLocalPath(depthPath));
+
+                            if (depthImageAsset != null)
+                            {
+                                EditorGUILayout.ObjectField(depthImageAsset, typeof(Texture2D), false, GUILayout.Height(128f), GUILayout.Width(256f));
+                            }
+                            else
+                            {
+                                if (!loadingSkyboxes.TryGetValue(skybox.ObfuscatedId, out _))
+                                {
+                                    EditorGUILayout.HelpBox($"Failed to load texture at {depthPath}!", MessageType.Error);
+                                }
+                            }
+                        }
+                    }
+                }
+                EditorGUILayout.EndHorizontal();
+
+                foreach (var export in skyboxExportOptions)
+                {
+                    if (export.Key.Contains("jpg") ||
+                        export.Key.Contains("depth-map-png") ||
+                        export.Key.Contains("equirectangular-png"))
+                    {
+                        continue;
                     }
 
-                    if (File.Exists(depthTextureFilePath))
+                    if (skybox.Exports.TryGetValue(export.Key, out var exportUrl))
                     {
-                        var depthLocalPath = depthTextureFilePath.Replace(Application.dataPath, "Assets");
-                        var depthImageAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(depthLocalPath);
+                        Rest.TryGetFileNameFromUrl(exportUrl, out var filename);
+                        var exportPath = GetFullLocalPath(skybox, export.Key, Path.GetExtension(filename));
 
-                        if (depthImageAsset != null)
+                        if (!File.Exists(exportPath))
                         {
-                            EditorGUILayout.ObjectField(depthImageAsset, typeof(Texture2D), false);
+                            EditorGUILayout.BeginHorizontal();
+                            EditorGUILayout.LabelField(export.Key);
+
+                            if (GUILayout.Button("Download", defaultColumnWidthOption))
+                            {
+                                EditorApplication.delayCall += async () =>
+                                {
+                                    try
+                                    {
+                                        Rest.TryDeleteCacheItem(exportUrl);
+                                        var downloadedPath = await Rest.DownloadFileAsync(exportUrl, exportPath);
+                                        Debug.Log(downloadedPath);
+                                        Debug.Log(exportPath);
+                                        File.Copy(downloadedPath, exportPath);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        Debug.LogError(e);
+                                    }
+                                };
+                            }
+
+                            EditorGUILayout.EndHorizontal();
                         }
+                        else
+                        {
+                            EditorGUILayout.BeginHorizontal();
+                            EditorGUILayout.LabelField(export.Key, expandWidthOption);
+                            var asset = AssetDatabase.LoadAssetAtPath<Object>(GetLocalPath(exportPath));
+
+                            if (asset != null)
+                            {
+                                switch (export.Key)
+                                {
+                                    case "equirectangular-png":
+                                    case "depth-map-png":
+                                    case "equirectangular-jpg":
+                                    case "depth-map-jpg":
+                                        // already handled.
+                                        break;
+                                    case "cube-map-png":
+                                        EditorGUILayout.ObjectField(asset, typeof(Cubemap), false, GUILayout.Height(128f), GUILayout.Width(128f));
+                                        break;
+                                    case "hdri-hdr":
+                                    case "hdri-exr":
+                                        EditorGUILayout.ObjectField(asset, typeof(Texture2D), false, GUILayout.Height(128f), GUILayout.Width(256f));
+                                        break;
+                                    case "video-landscape-mp4":
+                                    case "video-portrait-mp4":
+                                    case "video-square-mp4":
+                                        EditorGUILayout.ObjectField(asset, typeof(VideoClip), false);
+                                        break;
+                                    default:
+                                        EditorGUILayout.ObjectField(asset, typeof(Object), false);
+                                        break;
+                                }
+                            }
+                            else
+                            {
+                                EditorGUILayout.HelpBox($"Failed to load {export.Key} asset!", MessageType.Error);
+                            }
+
+                            EditorGUILayout.EndHorizontal();
+                        }
+                    }
+                    else
+                    {
+                        EditorGUILayout.BeginHorizontal();
+                        EditorGUILayout.LabelField(export.Key);
+
+                        if (GUILayout.Button("Export", defaultColumnWidthOption))
+                        {
+                            EditorApplication.delayCall += () =>
+                            {
+                                // TODO export it
+                            };
+                        }
+
+                        EditorGUILayout.EndHorizontal();
                     }
                 }
 
                 EditorGUILayout.EndVertical();
+                GUILayout.Space(EndWidth);
             }
 
             EditorGUILayout.EndVertical();
             GUILayout.Space(EndWidth);
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.Space();
+        }
+
+        private static string GetFullLocalPath(SkyboxInfo skybox, string assetType, string extension)
+            => Path.Combine(editorDownloadDirectory, $"{skybox.ObfuscatedId}-{assetType}{extension}").Replace("\\", "/").Replace(".zip", ".cubemap");
+
+        private static string GetLocalPath(string path)
+            => path.Replace(Application.dataPath, "Assets");
+
+        private static async void DeleteSkybox(SkyboxInfo skyboxInfo, string albedoPath, string depthPath)
+        {
+            if (!EditorUtility.DisplayDialog(
+                    "Attention!",
+                    $"Are you sure you want to delete skybox {skyboxInfo.Id}?\n\n({skyboxInfo.ObfuscatedId})",
+                    "Delete",
+                    "Cancel"))
+            {
+                return;
+            }
+
+            try
+            {
+                var success = await api.SkyboxEndpoint.DeleteSkyboxAsync(skyboxInfo.Id);
+
+                if (!success)
+                {
+                    Debug.LogError($"Failed to delete skybox {skyboxInfo.Id} ({skyboxInfo.ObfuscatedId})!");
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(albedoPath) &&
+                        File.Exists(albedoPath))
+                    {
+                        AssetDatabase.DeleteAsset(GetLocalPath(albedoPath));
+                    }
+
+                    if (!string.IsNullOrEmpty(depthPath) &&
+                        File.Exists(depthPath))
+                    {
+                        AssetDatabase.DeleteAsset(GetLocalPath(depthPath));
+                    }
+
+                    // TODO delete any local exported items from asset database
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
+            finally
+            {
+                EditorApplication.delayCall += () =>
+                {
+                    AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
+                };
+
+                FetchSkyboxHistory();
+            }
         }
 
         private static async void FetchSkyboxHistory()

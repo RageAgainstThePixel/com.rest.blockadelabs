@@ -23,6 +23,9 @@ namespace BlockadeLabs.Skyboxes
         /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
         /// in the negative-text-max-char response parameter defined for each style.
         /// </param>
+        /// <param name="enhancePrompt">
+        /// Have an AI automatically improve your prompt to generate pro-level results every time (default: false)
+        /// </param>
         /// <param name="seed">
         /// Send 0 for a random seed generation.
         /// Any other number (1-2147483647) set will be used to "freeze" the image generator generator and
@@ -34,9 +37,23 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="remixImagineId">
         /// ID of a previously generated skybox.
         /// </param>
-        /// <param name="depth">
-        /// Return depth map image.
-        /// </param>
+        public SkyboxRequest(
+            string prompt,
+            string negativeText = null,
+            bool? enhancePrompt = null,
+            int? seed = null,
+            int? skyboxStyleId = null,
+            int? remixImagineId = null)
+        {
+            Prompt = prompt;
+            NegativeText = negativeText;
+            EnhancePrompt = enhancePrompt;
+            Seed = seed;
+            SkyboxStyleId = skyboxStyleId;
+            RemixImagineId = remixImagineId;
+        }
+
+        [Obsolete]
         public SkyboxRequest(
             string prompt,
             string negativeText = null,
@@ -75,6 +92,9 @@ namespace BlockadeLabs.Skyboxes
         /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
         /// in the negative-text-max-char response parameter defined for each style.
         /// </param>
+        /// <param name="enhancePrompt">
+        /// Have an AI automatically improve your prompt to generate pro-level results every time (default: false)
+        /// </param>
         /// <param name="seed">
         /// Send 0 for a random seed generation.
         /// Any other number (1-2147483647) set will be used to "freeze" the image generator generator and
@@ -86,9 +106,29 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="remixImagineId">
         /// ID of a previously generated skybox.
         /// </param>
-        /// <param name="depth">
-        /// Return depth map image.
-        /// </param>
+        public SkyboxRequest(
+            string prompt,
+            string controlImagePath,
+            string controlModel = null,
+            string negativeText = null,
+            bool? enhancePrompt = null,
+            int? seed = null,
+            int? skyboxStyleId = null,
+            int? remixImagineId = null)
+            : this(
+                prompt,
+                File.OpenRead(controlImagePath),
+                Path.GetFileName(controlImagePath),
+                controlModel,
+                negativeText,
+                enhancePrompt,
+                seed,
+                skyboxStyleId,
+                remixImagineId)
+        {
+        }
+
+        [Obsolete]
         public SkyboxRequest(
             string prompt,
             string controlImagePath,
@@ -135,6 +175,9 @@ namespace BlockadeLabs.Skyboxes
         /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
         /// in the negative-text-max-char response parameter defined for each style.
         /// </param>
+        /// <param name="enhancePrompt">
+        /// Have an AI automatically improve your prompt to generate pro-level results every time (default: false)
+        /// </param>
         /// <param name="seed">
         /// Send 0 for a random seed generation.
         /// Any other number (1-2147483647) set will be used to "freeze" the image generator generator and
@@ -146,9 +189,33 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="remixImagineId">
         /// ID of a previously generated skybox.
         /// </param>
-        /// <param name="depth">
-        /// Return depth map image.
-        /// </param>
+        public SkyboxRequest(
+            string prompt,
+            Texture2D controlImage,
+            string controlModel = null,
+            string negativeText = null,
+            bool? enhancePrompt = null,
+            int? seed = null,
+            int? skyboxStyleId = null,
+            int? remixImagineId = null)
+            : this(
+                prompt,
+                new MemoryStream(controlImage.EncodeToPNG()),
+                !string.IsNullOrWhiteSpace(controlImage.name) ? $"{controlImage.name}.png" : null,
+                controlModel,
+                negativeText,
+                enhancePrompt,
+                seed,
+                skyboxStyleId,
+                remixImagineId)
+        {
+            if (controlImage.height != 512 || controlImage.width != 1024)
+            {
+                throw new ArgumentException($"{nameof(ControlImage)} dimensions should be 512x1024");
+            }
+        }
+
+        [Obsolete]
         public SkyboxRequest(
             string prompt,
             Texture2D controlImage,
@@ -200,6 +267,9 @@ namespace BlockadeLabs.Skyboxes
         /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
         /// in the negative-text-max-char response parameter defined for each style.
         /// </param>
+        /// <param name="enhancePrompt">
+        /// Have an AI automatically improve your prompt to generate pro-level results every time (default: false)
+        /// </param>
         /// <param name="seed">
         /// Send 0 for a random seed generation.
         /// Any other number (1-2147483647) set will be used to "freeze" the image generator generator and
@@ -211,9 +281,31 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="remixImagineId">
         /// ID of a previously generated skybox.
         /// </param>
-        /// <param name="depth">
-        /// Return depth map image.
-        /// </param>
+        public SkyboxRequest(
+            string prompt,
+            Stream controlImage,
+            string controlImageFileName,
+            string controlModel = null,
+            string negativeText = null,
+            bool? enhancePrompt = null,
+            int? seed = null,
+            int? skyboxStyleId = null,
+            int? remixImagineId = null)
+            : this(prompt, negativeText, enhancePrompt, seed, skyboxStyleId, remixImagineId)
+        {
+            ControlImage = controlImage;
+
+            if (string.IsNullOrWhiteSpace(controlImageFileName))
+            {
+                const string defaultImageName = "control_image.png";
+                controlImageFileName = defaultImageName;
+            }
+
+            ControlImageFileName = controlImageFileName;
+            ControlModel = controlModel;
+        }
+
+        [Obsolete]
         public SkyboxRequest(
             string prompt,
             Stream controlImage,
@@ -257,6 +349,11 @@ namespace BlockadeLabs.Skyboxes
         public string NegativeText { get; }
 
         /// <summary>
+        /// Have an AI automatically improve your prompt to generate pro-level results every time (default: false)
+        /// </summary>
+        public bool? EnhancePrompt { get; }
+
+        /// <summary>
         /// Send 0 for a random seed generation.
         /// Any other number (1-2147483647) set will be used to "freeze" the image generator generator and
         /// create similar images when run again with the same seed and settings.
@@ -276,6 +373,7 @@ namespace BlockadeLabs.Skyboxes
         /// <summary>
         /// Return depth map image.
         /// </summary>
+        [Obsolete]
         public bool Depth { get; }
 
         /// <summary>

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Scripting;
+using Utilities.Async;
 using Utilities.WebRequestRest;
 
 namespace BlockadeLabs.Skyboxes
@@ -71,10 +72,11 @@ namespace BlockadeLabs.Skyboxes
         /// Generate a skybox image.
         /// </summary>
         /// <param name="skyboxRequest"><see cref="SkyboxRequest"/>.</param>
+        /// <param name="exportOption">Optional, <see cref="SkyboxExportOption"/>.</param>
         /// <param name="pollingInterval">Optional, polling interval in seconds.</param>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
         /// <returns><see cref="SkyboxInfo"/>.</returns>
-        public async Task<SkyboxInfo> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, int? pollingInterval = null, CancellationToken cancellationToken = default)
+        public async Task<SkyboxInfo> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, SkyboxExportOption exportOption = null, int? pollingInterval = null, CancellationToken cancellationToken = default)
         {
             var formData = new WWWForm();
             formData.AddField("prompt", skyboxRequest.Prompt);
@@ -82,6 +84,11 @@ namespace BlockadeLabs.Skyboxes
             if (!string.IsNullOrWhiteSpace(skyboxRequest.NegativeText))
             {
                 formData.AddField("negative_text", skyboxRequest.NegativeText);
+            }
+
+            if (skyboxRequest.EnhancePrompt.HasValue)
+            {
+                formData.AddField("enhance_prompt", skyboxRequest.EnhancePrompt.ToString());
             }
 
             if (skyboxRequest.Seed.HasValue)
@@ -97,11 +104,6 @@ namespace BlockadeLabs.Skyboxes
             if (skyboxRequest.RemixImagineId.HasValue)
             {
                 formData.AddField("remix_imagine_id", skyboxRequest.RemixImagineId.Value);
-            }
-
-            if (skyboxRequest.Depth)
-            {
-                formData.AddField("return_depth", skyboxRequest.Depth.ToString());
             }
 
             if (skyboxRequest.ControlImage != null)
@@ -152,7 +154,32 @@ namespace BlockadeLabs.Skyboxes
                 throw new Exception($"Failed to generate skybox! {skyboxInfo.Id} -> {skyboxInfo.Status}\nError: {skyboxInfo.ErrorMessage}\n{skyboxInfo}");
             }
 
-            await skyboxInfo.LoadTexturesAsync(cancellationToken);
+            if (exportOption != null)
+            {
+                skyboxInfo = await ExportSkyboxAsync(skyboxInfo, exportOption, pollingInterval, cancellationToken);
+            }
+            else
+            {
+                var info = skyboxInfo;
+                var pngExportTasks = new List<Task>
+                {
+                    Task.Run(async () =>
+                    {
+                        await Awaiters.UnityMainThread;
+                        await ExportSkyboxAsync(info, new SkyboxExportOption(2, "Albedo", "equirectangular-png"), pollingInterval, cancellationToken);
+                    }, cancellationToken),
+                    Task.Run(async () =>
+                    {
+                        await Awaiters.UnityMainThread;
+                        await ExportSkyboxAsync(info, new SkyboxExportOption(6, "Depth", "depth-map-png"), pollingInterval, cancellationToken);
+                    }, cancellationToken),
+                };
+
+                await Task.WhenAll(pngExportTasks).ConfigureAwait(true);
+                skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
+            }
+
+            await skyboxInfo.LoadAssetsAsync(cancellationToken);
             return skyboxInfo;
         }
 
@@ -229,6 +256,7 @@ namespace BlockadeLabs.Skyboxes
         /// Cancels ALL pending skybox generation requests.
         /// </summary>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>True, if all generations are cancelled.</returns>
         public async Task<bool> CancelAllPendingSkyboxGenerationsAsync(CancellationToken cancellationToken = default)
         {
             var response = await Rest.DeleteAsync(GetUrl("imagine/requests/pending"), new RestParameters(client.DefaultRequestHeaders), cancellationToken);
@@ -244,6 +272,103 @@ namespace BlockadeLabs.Skyboxes
                 }
 
                 throw new Exception($"Failed to cancel all pending skybox generations!\n{skyboxOp?.Error}");
+            }
+
+            return skyboxOp.Success.Equals("true");
+        }
+
+        /// <summary>
+        /// Returns the list of all available export types.
+        /// </summary>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>A list of available export types.</returns>
+        public async Task<IReadOnlyList<SkyboxExportOption>> GetExportOptionsAsync(CancellationToken cancellationToken = default)
+        {
+            var response = await Rest.GetAsync(GetUrl("skybox/export"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxExportOption>>(response.Body, client.JsonSerializationOptions);
+        }
+
+        /// <summary>
+        /// Exports the <see cref="SkyboxInfo"/> using the provided <see cref="SkyboxExportOption"/>.
+        /// </summary>
+        /// <param name="skyboxInfo">Skybox to export.</param>
+        /// <param name="exportOption">Export option to use.</param>
+        /// <param name="pollingInterval">Optional, polling interval in seconds.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>Updated <see cref="SkyboxInfo"/> with exported assets loaded into memory.</returns>
+        public async Task<SkyboxInfo> ExportSkyboxAsync(SkyboxInfo skyboxInfo, SkyboxExportOption exportOption, int? pollingInterval = null, CancellationToken cancellationToken = default)
+        {
+            var payload = $"{{\"skybox_id\":\"{skyboxInfo.ObfuscatedId}\",\"type_id\":{exportOption.Id}}}";
+            var response = await Rest.PostAsync(GetUrl("skybox/export"), payload, new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+
+            var exportRequest = JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, client.JsonSerializationOptions);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(pollingInterval ?? 3 * 1000, CancellationToken.None)
+                    .ConfigureAwait(true); // Configure await to make sure we're still in Unity context
+                exportRequest = await GetExportRequestStatusAsync(exportRequest, CancellationToken.None);
+
+                if (exportRequest.Status is Status.Pending or Status.Processing or Status.Dispatched)
+                {
+                    continue;
+                }
+
+                break;
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                var cancelResult = await CancelSkyboxExportAsync(exportRequest, CancellationToken.None);
+
+                if (!cancelResult)
+                {
+                    throw new Exception($"Failed to cancel export for {exportRequest.Id}");
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (exportRequest.Status != Status.Complete)
+            {
+                throw new Exception($"Failed to export skybox! {exportRequest.Id} -> {exportRequest.Status}\nError: {exportRequest.ErrorMessage}\n{exportRequest}");
+            }
+
+            skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            return skyboxInfo;
+        }
+
+        /// <summary>
+        /// Gets the status of a specified <see cref="SkyboxExportRequest"/>.
+        /// </summary>
+        /// <param name="exportRequest">The export option to get the current status for.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>Updated <see cref="SkyboxExportRequest"/> with latest information.</returns>
+        public async Task<SkyboxExportRequest> GetExportRequestStatusAsync(SkyboxExportRequest exportRequest, CancellationToken cancellationToken = default)
+        {
+            var response = await Rest.GetAsync(GetUrl($"skybox/export/{exportRequest.Id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            return JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, client.JsonSerializationOptions);
+        }
+
+        /// <summary>
+        /// Cancels the specified <see cref="SkyboxExportRequest"/>.
+        /// </summary>
+        /// <param name="exportRequest">The export option to cancel.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>True, if generation was cancelled.</returns>
+        public async Task<bool> CancelSkyboxExportAsync(SkyboxExportRequest exportRequest, CancellationToken cancellationToken = default)
+        {
+            var response = await Rest.DeleteAsync(GetUrl($"skybox/export/{exportRequest.Id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate();
+            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, client.JsonSerializationOptions);
+
+            if (skyboxOp is not { Success: "true" })
+            {
+                throw new Exception($"Failed to cancel export for request {exportRequest.Id}!\n{skyboxOp?.Error}");
             }
 
             return skyboxOp.Success.Equals("true");
