@@ -17,7 +17,7 @@ using Task = System.Threading.Tasks.Task;
 
 namespace BlockadeLabs.Editor
 {
-    public sealed class BlockadeLabsEditorWindow : EditorWindow
+    public sealed class BlockadeLabsDashboard : EditorWindow
     {
         private const int TabWidth = 18;
         private const int EndWidth = 10;
@@ -132,11 +132,11 @@ namespace BlockadeLabs.Editor
 
         private Texture2D controlImage;
 
-        [MenuItem("BlockadeLabs/Dashboard")]
+        [MenuItem("Window/Dashboards/Bloackade Labs", false, priority: 999)]
         private static void OpenWindow()
         {
             // Dock it next to the Scene View.
-            var instance = GetWindow<BlockadeLabsEditorWindow>(typeof(SceneView));
+            var instance = GetWindow<BlockadeLabsDashboard>(typeof(SceneView));
             instance.Show();
             instance.titleContent = guiTitleContent;
         }
