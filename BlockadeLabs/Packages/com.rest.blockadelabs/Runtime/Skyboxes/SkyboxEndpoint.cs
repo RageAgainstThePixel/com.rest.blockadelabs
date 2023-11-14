@@ -4,11 +4,12 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Networking;
 using UnityEngine.Scripting;
-using Utilities.Async;
 using Utilities.WebRequestRest;
 
 namespace BlockadeLabs.Skyboxes
@@ -64,8 +65,8 @@ namespace BlockadeLabs.Skyboxes
         public async Task<IReadOnlyList<SkyboxStyle>> GetSkyboxStylesAsync(CancellationToken cancellationToken = default)
         {
             var response = await Rest.GetAsync(GetUrl("skybox/styles"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(response.Body, client.JsonSerializationOptions);
+            response.Validate(EnableDebug);
+            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
         }
 
         /// <summary>
@@ -120,20 +121,14 @@ namespace BlockadeLabs.Skyboxes
             }
 
             var response = await Rest.PostAsync(GetUrl("skybox"), formData, parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfo>(response.Body, client.JsonSerializationOptions);
+            response.Validate(EnableDebug);
+            var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfo>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(pollingInterval ?? 3 * 1000, CancellationToken.None)
-                    .ConfigureAwait(true); // Configure await to make sure we're still in Unity context
+                await Task.Delay(pollingInterval ?? 3000, CancellationToken.None).ConfigureAwait(true);
                 skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo, CancellationToken.None);
-
-                if (skyboxInfo.Status is Status.Pending or Status.Processing or Status.Dispatched)
-                {
-                    continue;
-                }
-
+                if (skyboxInfo.Status is Status.Pending or Status.Processing or Status.Dispatched) { continue; }
                 break;
             }
 
@@ -160,19 +155,12 @@ namespace BlockadeLabs.Skyboxes
             }
             else
             {
+                var exportOptions = await GetAllSkyboxExportOptionsAsync(cancellationToken);
                 var info = skyboxInfo;
                 var pngExportTasks = new List<Task>
                 {
-                    Task.Run(async () =>
-                    {
-                        await Awaiters.UnityMainThread;
-                        await ExportSkyboxAsync(info, new SkyboxExportOption(2, "Albedo", "equirectangular-png"), pollingInterval, cancellationToken);
-                    }, cancellationToken),
-                    Task.Run(async () =>
-                    {
-                        await Awaiters.UnityMainThread;
-                        await ExportSkyboxAsync(info, new SkyboxExportOption(6, "Depth", "depth-map-png"), pollingInterval, cancellationToken);
-                    }, cancellationToken),
+                    ExportSkyboxAsync(info, exportOptions.FirstOrDefault(option => option.Key.Equals("equirectangular-png")), pollingInterval, cancellationToken),
+                    ExportSkyboxAsync(info, exportOptions.FirstOrDefault(option => option.Key.Equals("depth-map-png")), pollingInterval, cancellationToken)
                 };
 
                 await Task.WhenAll(pngExportTasks).ConfigureAwait(true);
@@ -192,8 +180,8 @@ namespace BlockadeLabs.Skyboxes
         public async Task<SkyboxInfo> GetSkyboxInfoAsync(int id, CancellationToken cancellationToken = default)
         {
             var response = await Rest.GetAsync(GetUrl($"imagine/requests/{id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            return JsonConvert.DeserializeObject<SkyboxInfoRequest>(response.Body, client.JsonSerializationOptions).SkyboxInfo;
+            response.Validate(EnableDebug);
+            return JsonConvert.DeserializeObject<SkyboxInfoRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions).SkyboxInfo;
         }
 
         /// <summary>
@@ -205,8 +193,8 @@ namespace BlockadeLabs.Skyboxes
         public async Task<bool> DeleteSkyboxAsync(int id, CancellationToken cancellationToken = default)
         {
             var response = await Rest.DeleteAsync(GetUrl($"imagine/deleteImagine/{id}"), new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, client.JsonSerializationOptions);
+            response.Validate(EnableDebug);
+            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
 
             const string successStatus = "Item deleted successfully";
 
@@ -227,9 +215,47 @@ namespace BlockadeLabs.Skyboxes
         public async Task<SkyboxHistory> GetSkyboxHistoryAsync(SkyboxHistoryParameters parameters = null, CancellationToken cancellationToken = default)
         {
             var historyRequest = parameters ?? new SkyboxHistoryParameters();
-            var response = await Rest.GetAsync(GetUrl($"imagine/myRequests{historyRequest}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            return JsonConvert.DeserializeObject<SkyboxHistory>(response.Body, client.JsonSerializationOptions);
+
+            var @params = new Dictionary<string, string>();
+
+            if (historyRequest.StatusFilter.HasValue)
+            {
+                @params.Add("status", historyRequest.StatusFilter.ToString().ToLower());
+            }
+
+            if (historyRequest.Limit.HasValue)
+            {
+                @params.Add("limit", historyRequest.Limit.ToString());
+            }
+
+            if (historyRequest.Offset.HasValue)
+            {
+                @params.Add("offset", historyRequest.Offset.ToString());
+            }
+
+            if (historyRequest.Order.HasValue)
+            {
+                @params.Add("order:", historyRequest.Order.ToString().ToUpper());
+            }
+
+            if (historyRequest.ImagineId.HasValue)
+            {
+                @params.Add("imagine_id", historyRequest.ImagineId.ToString());
+            }
+
+            if (!string.IsNullOrWhiteSpace(historyRequest.QueryFilter))
+            {
+                @params.Add("query", UnityWebRequest.EscapeURL(historyRequest.QueryFilter));
+            }
+
+            if (!string.IsNullOrWhiteSpace(historyRequest.GeneratorFilter))
+            {
+                @params.Add("generator", UnityWebRequest.EscapeURL(historyRequest.GeneratorFilter));
+            }
+
+            var response = await Rest.GetAsync(GetUrl($"imagine/myRequests", @params), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate(EnableDebug);
+            return JsonConvert.DeserializeObject<SkyboxHistory>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
         }
 
         /// <summary>
@@ -241,8 +267,8 @@ namespace BlockadeLabs.Skyboxes
         public async Task<bool> CancelSkyboxGenerationAsync(int id, CancellationToken cancellationToken = default)
         {
             var response = await Rest.DeleteAsync(GetUrl($"imagine/requests/{id}"), new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, client.JsonSerializationOptions);
+            response.Validate(EnableDebug);
+            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
 
             if (skyboxOp is not { Success: "true" })
             {
@@ -260,8 +286,8 @@ namespace BlockadeLabs.Skyboxes
         public async Task<bool> CancelAllPendingSkyboxGenerationsAsync(CancellationToken cancellationToken = default)
         {
             var response = await Rest.DeleteAsync(GetUrl("imagine/requests/pending"), new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, client.JsonSerializationOptions);
+            response.Validate(EnableDebug);
+            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
 
             if (skyboxOp is not { Success: "true" })
             {
@@ -282,11 +308,11 @@ namespace BlockadeLabs.Skyboxes
         /// </summary>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
         /// <returns>A list of available export types.</returns>
-        public async Task<IReadOnlyList<SkyboxExportOption>> GetExportOptionsAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<SkyboxExportOption>> GetAllSkyboxExportOptionsAsync(CancellationToken cancellationToken = default)
         {
             var response = await Rest.GetAsync(GetUrl("skybox/export"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxExportOption>>(response.Body, client.JsonSerializationOptions);
+            response.Validate(EnableDebug);
+            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxExportOption>>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
         }
 
         /// <summary>
@@ -301,21 +327,15 @@ namespace BlockadeLabs.Skyboxes
         {
             var payload = $"{{\"skybox_id\":\"{skyboxInfo.ObfuscatedId}\",\"type_id\":{exportOption.Id}}}";
             var response = await Rest.PostAsync(GetUrl("skybox/export"), payload, new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
+            response.Validate(EnableDebug);
 
-            var exportRequest = JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, client.JsonSerializationOptions);
+            var exportRequest = JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(pollingInterval ?? 3 * 1000, CancellationToken.None)
-                    .ConfigureAwait(true); // Configure await to make sure we're still in Unity context
+                await Task.Delay(pollingInterval ?? 3000, CancellationToken.None).ConfigureAwait(true);
                 exportRequest = await GetExportRequestStatusAsync(exportRequest, CancellationToken.None);
-
-                if (exportRequest.Status is Status.Pending or Status.Processing or Status.Dispatched)
-                {
-                    continue;
-                }
-
+                if (exportRequest.Status is Status.Pending or Status.Processing or Status.Dispatched) { continue; }
                 break;
             }
 
@@ -350,8 +370,8 @@ namespace BlockadeLabs.Skyboxes
         public async Task<SkyboxExportRequest> GetExportRequestStatusAsync(SkyboxExportRequest exportRequest, CancellationToken cancellationToken = default)
         {
             var response = await Rest.GetAsync(GetUrl($"skybox/export/{exportRequest.Id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            return JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, client.JsonSerializationOptions);
+            response.Validate(EnableDebug);
+            return JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
         }
 
         /// <summary>
@@ -363,8 +383,8 @@ namespace BlockadeLabs.Skyboxes
         public async Task<bool> CancelSkyboxExportAsync(SkyboxExportRequest exportRequest, CancellationToken cancellationToken = default)
         {
             var response = await Rest.DeleteAsync(GetUrl($"skybox/export/{exportRequest.Id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
-            response.Validate();
-            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, client.JsonSerializationOptions);
+            response.Validate(EnableDebug);
+            var skyboxOp = JsonConvert.DeserializeObject<SkyboxOperation>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
 
             if (skyboxOp is not { Success: "true" })
             {

@@ -3,17 +3,17 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Networking;
 using UnityEngine.Video;
 using Utilities.Async;
 using Utilities.WebRequestRest;
+using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
 
 namespace BlockadeLabs.Skyboxes
@@ -58,7 +58,10 @@ namespace BlockadeLabs.Skyboxes
             ProcessingAt = processingAt;
             CompletedAt = completedAt;
             ErrorMessage = errorMessage;
-            Exports = exports ?? new Dictionary<string, string>();
+            exports ??= new Dictionary<string, string>();
+            exports.TryAdd("equirectangular-png", mainTextureUrl);
+            exports.TryAdd("depth-map-png", depthTextureUrl);
+            Exports = exports;
         }
 
         [JsonProperty("id")]
@@ -84,6 +87,7 @@ namespace BlockadeLabs.Skyboxes
         public string MainTextureUrl { get; private set; }
 
         [JsonIgnore]
+        [Obsolete("Get texture from ExportedAssets")]
         public Texture2D MainTexture { get; internal set; }
 
         [JsonProperty("thumb_url")]
@@ -96,6 +100,7 @@ namespace BlockadeLabs.Skyboxes
         public string DepthTextureUrl { get; private set; }
 
         [JsonIgnore]
+        [Obsolete("Get depth from ExportedAssets")]
         public Texture2D DepthTexture { get; internal set; }
 
         [JsonProperty("title")]
@@ -123,9 +128,14 @@ namespace BlockadeLabs.Skyboxes
         public string ErrorMessage { get; }
 
         [JsonProperty("exports")]
-        public Dictionary<string, string> Exports { get; private set; }
+        public IReadOnlyDictionary<string, string> Exports { get; }
 
-        public override string ToString() => JsonConvert.SerializeObject(this, Formatting.Indented);
+        internal readonly Dictionary<string, Object> exportedAssets = new Dictionary<string, Object>();
+
+        [JsonIgnore]
+        public IReadOnlyDictionary<string, Object> ExportedAssets => exportedAssets;
+
+        public override string ToString() => JsonConvert.SerializeObject(this, Formatting.Indented, BlockadeLabsClient.JsonSerializationOptions);
 
         public static implicit operator int(SkyboxInfo skyboxInfo) => skyboxInfo.Id;
 
@@ -143,88 +153,98 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
         public async Task LoadAssetsAsync(CancellationToken cancellationToken = default)
         {
-            if (Exports.TryGetValue("equirectangular-png", out var imageUrl) ||
-                Exports.TryGetValue("equirectangular-jpg", out imageUrl))
+            async Task DownloadThumbnail()
             {
-                MainTextureUrl = imageUrl;
+                if (!string.IsNullOrWhiteSpace(ThumbUrl))
+                {
+                    await Awaiters.UnityMainThread;
+                    Rest.TryGetFileNameFromUrl(ThumbUrl, out var filename);
+                    Thumbnail = await Rest.DownloadTextureAsync(ThumbUrl, fileName: $"{ObfuscatedId}-thumb{Path.GetExtension(filename)}", cancellationToken: cancellationToken);
+                }
             }
 
-            if (Exports.TryGetValue("depth-map-png", out var depthUrl) ||
-                Exports.TryGetValue("depth-map-jpg", out depthUrl))
+            async Task DownloadExport(KeyValuePair<string, string> export)
             {
-                DepthTextureUrl = depthUrl;
+                try
+                {
+                    await Awaiters.UnityMainThread;
+                    var exportUrl = export.Value;
+
+                    if (!string.IsNullOrWhiteSpace(exportUrl))
+                    {
+                        Rest.TryGetFileNameFromUrl(exportUrl, out var filename);
+                        var path = $"{ObfuscatedId}-{export.Key}{Path.GetExtension(filename)}";
+
+                        switch (export.Key)
+                        {
+                            case "depth-map-png":
+                            case "equirectangular-png":
+                            case "equirectangular-jpg":
+                                var texture = await Rest.DownloadTextureAsync(exportUrl, path, cancellationToken: cancellationToken);
+                                exportedAssets[export.Key] = texture;
+                                break;
+                            case "cube-map-default-png":
+                            case "cube-map-roblox-png":
+                                // TODO download and extract zip
+                                await Rest.DownloadFileAsync(exportUrl, path, cancellationToken: cancellationToken);
+                                //Debug.Log(zipPath);
+                                break;
+                            case "hdri-hdr":
+                            case "hdri-exr":
+                            case "video-landscape-mp4":
+                            case "video-portrait-mp4":
+                            case "video-square-mp4":
+                                await Rest.DownloadFileAsync(exportUrl, path, cancellationToken: cancellationToken);
+                                break;
+                            default:
+                                Debug.LogWarning($"No download task defined for {export.Key}!");
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError($"No valid url for skybox {ObfuscatedId}.{export.Key}");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+                }
             }
 
-            var downloadTasks = new List<Task>
-            {
-                Task.Run(async () =>
-                {
-                    if (!string.IsNullOrWhiteSpace(ThumbUrl))
-                    {
-                        await Awaiters.UnityMainThread;
-                        Rest.TryGetFileNameFromUrl(ThumbUrl, out var filename);
-                        Thumbnail = await Rest.DownloadTextureAsync(ThumbUrl, fileName: $"{ObfuscatedId}-thumb{Path.GetExtension(filename)}", cancellationToken: cancellationToken);
-                    }
-                }, cancellationToken),
-                Task.Run(async () =>
-                {
-                    if (!string.IsNullOrWhiteSpace(MainTextureUrl))
-                    {
-                        await Awaiters.UnityMainThread;
-                        Rest.TryGetFileNameFromUrl(MainTextureUrl, out var filename);
-                        MainTexture = await Rest.DownloadTextureAsync(MainTextureUrl, fileName: $"{ObfuscatedId}-albedo{Path.GetExtension(filename)}", cancellationToken: cancellationToken);
-                    }
-                }, cancellationToken),
-                Task.Run(async () =>
-                {
-                    if (!string.IsNullOrWhiteSpace(DepthTextureUrl))
-                    {
-                        await Awaiters.UnityMainThread;
-                        Rest.TryGetFileNameFromUrl(DepthTextureUrl, out var filename);
-                        DepthTexture = await Rest.DownloadTextureAsync(DepthTextureUrl, fileName: $"{ObfuscatedId}-depth{Path.GetExtension(filename)}", cancellationToken: cancellationToken);
-                    }
-                }, cancellationToken)
-            };
-
-            //downloadTasks.AddRange(Exports.Select(export => Task.Run(async () =>
-            //{
-            //    var exportUrl = export.Value;
-            //    Debug.Log($"{export.Key} -> {exportUrl}");
-
-            //    if (!string.IsNullOrWhiteSpace(exportUrl))
-            //    {
-            //        await Awaiters.UnityMainThread;
-            //        //Rest.TryGetFileNameFromUrl(exportUrl, out var filename);
-
-            //        switch (export.Key)
-            //        {
-            //            case "depth-map-png":
-            //            case "equirectangular-png":
-            //            case "equirectangular-jpg":
-            //                // already handled.
-            //                break;
-            //            case "cube-map-png":
-            //                // TODO download and extract zip
-            //                break;
-            //            case "hdri-hdr":
-            //            case "hdri-exr":
-            //            case "video-landscape-mp4":
-            //            case "video-portrait-mp4":
-            //            case "video-square-mp4":
-            //                // await Rest.DownloadFileAsync(exportUrl, $"{ObfuscatedId}-{export.Key}{Path.GetExtension(filename)}", cancellationToken: cancellationToken);
-            //                break;
-            //            default:
-            //                Debug.LogWarning($"No download task defined for {export.Key}!");
-            //                break;
-            //        }
-            //    }
-            //    else
-            //    {
-            //        Debug.LogError($"No valid url for skybox {ObfuscatedId}.{export.Key}");
-            //    }
-            //}, cancellationToken)));
-
+            var downloadTasks = new List<Task> { DownloadThumbnail() };
+            downloadTasks.AddRange(Exports.Select(DownloadExport));
             await Task.WhenAll(downloadTasks).ConfigureAwait(true);
+        }
+
+        public bool TryGetAssetCachePath(string key, out string localCachedPath)
+        {
+            if (Exports.TryGetValue(key, out var exportUrl) &&
+                Rest.TryGetFileNameFromUrl(exportUrl, out var filename))
+            {
+                var cachePath = Path.Combine(Rest.DownloadCacheDirectory, $"{ObfuscatedId}-{key}{Path.GetExtension(filename)}");
+                return Rest.TryGetDownloadCacheItem($"file://{cachePath}", out localCachedPath);
+            }
+
+            localCachedPath = string.Empty;
+            return false;
+        }
+
+        public bool TryGetAsset<T>(string key, out T asset) where T : Object
+        {
+            if (ExportedAssets.TryGetValue(key, out var obj))
+            {
+                asset = (T)obj;
+                return true;
+            }
+
+            if (Exports.ContainsKey(key))
+            {
+                Debug.LogWarning($"{key} exists, but has not been loaded. Have you called {nameof(LoadAssetsAsync)}?");
+            }
+
+            asset = default;
+            return false;
         }
     }
 }
