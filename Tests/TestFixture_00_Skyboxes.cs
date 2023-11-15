@@ -4,13 +4,15 @@ using BlockadeLabs.Skyboxes;
 using NUnit.Framework;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
-using Task = System.Threading.Tasks.Task;
 
 namespace BlockadeLabs.Tests
 {
     public class TestFixture_01_Skyboxes
     {
+        private static SkyboxInfo testSkyboxInfo;
+
         [Test]
         public async Task Test_01_GetSkyboxStyles()
         {
@@ -31,15 +33,27 @@ namespace BlockadeLabs.Tests
             var api = new BlockadeLabsClient(BlockadeLabsAuthentication.Default.LoadFromEnvironment());
             Assert.IsNotNull(api.SkyboxEndpoint);
 
-            var request = new SkyboxRequest("mars", depth: true);
+            var request = new SkyboxRequest("mars", enhancePrompt: true);
             var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
             Assert.IsNotNull(skyboxInfo);
             Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
-            Debug.Log(skyboxInfo.MainTextureUrl);
-            Assert.IsNotNull(skyboxInfo.MainTexture);
-            Debug.Log(skyboxInfo.DepthTextureUrl);
-            Assert.IsNotNull(skyboxInfo.DepthTexture);
+
+            Assert.IsNotEmpty(skyboxInfo.Exports);
+            Assert.IsNotEmpty(skyboxInfo.ExportedAssets);
+
+            foreach (var exportInfo in skyboxInfo.Exports)
+            {
+                Debug.Log($"{exportInfo.Key} -> {exportInfo.Value}");
+            }
+
+            foreach (var exportedAsset in skyboxInfo.ExportedAssets)
+            {
+                Debug.Log(exportedAsset.Key);
+                Assert.IsNotNull(exportedAsset.Value);
+            }
+
             Debug.Log(skyboxInfo.ToString());
+            testSkyboxInfo = skyboxInfo;
         }
 
         [Test]
@@ -47,12 +61,23 @@ namespace BlockadeLabs.Tests
         {
             var api = new BlockadeLabsClient(BlockadeLabsAuthentication.Default.LoadFromEnvironment());
             Assert.IsNotNull(api.SkyboxEndpoint);
-            var skyboxId = 6602899;
+            var skyboxId = testSkyboxInfo.Id;
             var skyboxInfo = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxId);
             Assert.IsNotNull(skyboxInfo);
-            await skyboxInfo.LoadTexturesAsync();
-            Assert.IsNotNull(skyboxInfo.MainTexture);
-            Assert.IsNotNull(skyboxInfo.DepthTexture);
+            await skyboxInfo.LoadAssetsAsync();
+            Assert.IsNotEmpty(skyboxInfo.Exports);
+            Assert.IsNotEmpty(skyboxInfo.ExportedAssets);
+
+            foreach (var exportInfo in skyboxInfo.Exports)
+            {
+                Debug.Log($"{exportInfo.Key} -> {exportInfo.Value}");
+            }
+
+            foreach (var exportedAsset in skyboxInfo.ExportedAssets)
+            {
+                Debug.Log(exportedAsset.Key);
+                Assert.IsNotNull(exportedAsset.Value);
+            }
         }
 
         [Test]
@@ -76,12 +101,12 @@ namespace BlockadeLabs.Tests
         {
             var api = new BlockadeLabsClient(BlockadeLabsAuthentication.Default.LoadFromEnvironment());
             Assert.IsNotNull(api.SkyboxEndpoint);
-            var request = new SkyboxRequest("mars", depth: true);
+            var request = new SkyboxRequest("mars", enhancePrompt: true);
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
 
             try
             {
-                await api.SkyboxEndpoint.GenerateSkyboxAsync(request, 1, cts.Token);
+                await api.SkyboxEndpoint.GenerateSkyboxAsync(request, pollingInterval: 1, cancellationToken: cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -115,6 +140,53 @@ namespace BlockadeLabs.Tests
                 Debug.Log($"Deleting {skybox.Id} {skybox.Title}");
                 var result = await api.SkyboxEndpoint.DeleteSkyboxAsync(skybox);
                 Assert.IsTrue(result);
+            }
+        }
+
+        [Test]
+        public async Task Test_08_GetSkyboxExportOptions()
+        {
+            var api = new BlockadeLabsClient(BlockadeLabsAuthentication.Default.LoadFromEnvironment());
+            Assert.IsNotNull(api.SkyboxEndpoint);
+            var exportOptions = await api.SkyboxEndpoint.GetAllSkyboxExportOptionsAsync();
+            Assert.IsNotNull(exportOptions);
+            Assert.IsNotEmpty(exportOptions);
+
+            foreach (var exportOption in exportOptions)
+            {
+                Debug.Log($"{exportOption.Id}: {exportOption.Name} | {exportOption.Key}");
+            }
+        }
+
+        [Test]
+        public async Task Test_09_ExportSkybox_All_Options()
+        {
+            var api = new BlockadeLabsClient(BlockadeLabsAuthentication.Default.LoadFromEnvironment());
+            Assert.IsNotNull(api.SkyboxEndpoint);
+            var skyboxId = testSkyboxInfo.Id;
+            var skyboxInfo = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxId);
+            Assert.IsNotNull(skyboxInfo);
+            var exportOptions = await api.SkyboxEndpoint.GetAllSkyboxExportOptionsAsync();
+            Assert.IsNotNull(exportOptions);
+            Assert.IsNotEmpty(exportOptions);
+
+            foreach (var exportOption in exportOptions)
+            {
+                Debug.Log(exportOption.Key);
+                Assert.IsNotNull(exportOption);
+                skyboxInfo = await api.SkyboxEndpoint.ExportSkyboxAsync(skyboxInfo, exportOption);
+                Assert.IsNotNull(skyboxInfo);
+                Assert.IsTrue(skyboxInfo.Exports.ContainsKey(exportOption.Key));
+                skyboxInfo.Exports.TryGetValue(exportOption.Key, out var exportUrl);
+                Debug.Log(exportUrl);
+            }
+
+            if (skyboxInfo.Exports.Count > 0)
+            {
+                foreach (var exportInfo in skyboxInfo.Exports)
+                {
+                    Debug.Log($"{exportInfo.Key} -> {exportInfo.Value}");
+                }
             }
         }
     }

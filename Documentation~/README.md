@@ -43,10 +43,15 @@ The recommended installation method is though the unity package manager and [Ope
 ### Table of Contents
 
 - [Authentication](#authentication)
+- [Editor Dashboard](#editor-dashboard) :new:
+  - [Skybox Dashboard](#skybox-dashboard) :new:
+  - [History Dashboard](#history-dashboard) :new:
 - [Skyboxes](#skyboxes)
   - [Get Skybox Styles](#get-skybox-styles)
+  - [Get Skybox Export Options](#get-skybox-export-options) :new:
   - [Generate Skybox](#generate-skybox)
   - [Get Skybox by Id](#get-skybox)
+  - [Request Skybox Export](#request-skybox-export) :new:
   - [Delete Skybox by Id](#delete-skybox)
   - [Get Skybox History](#get-skybox-history)
   - [Cancel Skybox Generation](#cancel-skybox-generation)
@@ -111,6 +116,26 @@ Use your system's environment variables specify an api key to use.
 var api = new BlockadeLabsClient(BlockadeLabsAuthentication.Default.LoadFromEnvironment());
 ```
 
+### Editor Dashboard
+
+You can perform all of the same actions from the BlockadeLabs website, in the Editor using the BlockadeLabs Dashboard!
+
+`Window/Dashboards/BlockadeLabs`
+
+![dashboard](images/dashboard.png)
+
+#### Skybox Dashboard
+
+Generate skyboxes and remix them directly in the editor.
+
+![History](images/skybox-editor.png)
+
+#### History Dashboard
+
+You also have access to the full list of all your generated skyboxes, ready for downloading directly into your project.
+
+![History](images/history-editor.png)
+
 ### Skyboxes
 
 #### [Get Skybox Styles](https://api-documentation.blockadelabs.com/api/skybox.html#get-skybox-styles)
@@ -127,16 +152,34 @@ foreach (var skyboxStyle in skyboxStyles)
 }
 ```
 
+#### [Get Skybox Export Options](https://api-documentation.blockadelabs.com/api/skybox-exports.html#get-export-types)
+
+Returns the list of all available export types.
+
+```csharp
+var api = new BlockadeLabsClient();
+var exportOptions = await api.SkyboxEndpoint.GetAllSkyboxExportOptionsAsync();
+
+foreach (var exportOption in exportOptions)
+{
+    Debug.Log($"{exportOption.Id}: {exportOption.Name} | {exportOption.Key}");
+}
+```
+
 #### [Generate Skybox](https://api-documentation.blockadelabs.com/api/skybox.html#generate-skybox)
 
 Generate a skybox.
 
 ```csharp
 var api = new BlockadeLabsClient();
-var request = new SkyboxRequest("mars", depth: true);
+var request = new SkyboxRequest("mars", enhancePrompt: true);
 var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
-skyboxMaterial.mainTexture = skyboxInfo.MainTexture;
-skyboxMaterial.depthTexture = skyboxInfo.DepthTexture;
+Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
+
+if (skyboxInfo.TryGetAsset<Texture2D>("equirectangular-png", out var texture))
+{
+    skyboxMaterial.mainTexture = texture;
+}
 ```
 
 #### [Get Skybox](https://api-documentation.blockadelabs.com/api/skybox.html#get-skybox-by-id)
@@ -145,12 +188,35 @@ Returns the skybox metadata for the given skybox id.
 
 ```csharp
 var skyboxId = 42;
+var api = new BlockadeLabsClient();
 var skyboxInfo = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxId);
-Debug.Log($"Skybox: {result.Id} | {result.MainTextureUrl}");
-// Note: If you wish to use the returned skybox textures you'll need to additionally call await SkyboxInfo.LoadTexturesAsync(); before you can assign them to a material property.
-await skyboxInfo.LoadTexturesAsync();
-skyboxMaterial.mainTexture = skyboxInfo.MainTexture;
-skyboxMaterial.depthTexture = skyboxInfo.DepthTexture;
+Debug.Log($"Skybox: {result.Id}");
+// Note: If you wish to use the returned skybox textures you'll need to additionally call await SkyboxInfo.LoadAssetsAsync(); before you can assign them to a material property.
+await skyboxInfo.LoadAssetsAsync();
+
+if (skyboxInfo.TryGetAsset<Texture2D>("equirectangular-png", out var texture))
+{
+    skyboxMaterial.mainTexture = texture;
+}
+```
+
+#### [Request Skybox Export](https://api-documentation.blockadelabs.com/api/skybox-exports.html#request-export)
+
+Exports the skybox with the requested export type.
+
+```csharp
+var skyboxId = 42;
+var api = new BlockadeLabsClient();
+var skyboxInfo = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxId);
+var exportOptions = await api.SkyboxEndpoint.GetAllSkyboxExportOptionsAsync();
+var exportOption = exportOptions.FirstOrDefault(option => option.Key == "depth-map-png");
+skyboxInfo = await api.SkyboxEndpoint.ExportSkyboxAsync(skyboxInfo, exportOption);
+await skyboxInfo.LoadAssetsAsync();
+
+if (skyboxInfo.TryGetAsset<Texture2D>("depth-map-png", out var texture))
+{
+    skyboxMaterial.depthTexture = skyboxInfo.DepthTexture;
+}
 ```
 
 #### [Delete Skybox](https://api-documentation.blockadelabs.com/api/skybox.html#delete)

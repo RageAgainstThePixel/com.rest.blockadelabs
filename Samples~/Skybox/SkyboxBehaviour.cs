@@ -82,8 +82,16 @@ namespace BlockadeLabs.Samples.Skybox
                 promptInputField.interactable = false;
                 var request = new SkyboxRequest(prompt, skyboxStyleId: skyboxOptions[skyboxStyleDropdown.value].Id);
                 var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, cancellationToken: lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
-                skyboxMaterial.mainTexture = skyboxInfo.MainTexture;
-                Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
+
+                if (skyboxInfo.TryGetAsset<Texture2D>("equirectangular-png", out var texture))
+                {
+                    skyboxMaterial.mainTexture = texture;
+                    Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
+                }
+                else
+                {
+                    Debug.LogError("Failed to load texture for generated skybox!");
+                }
             }
             catch (Exception e)
             {
@@ -99,6 +107,8 @@ namespace BlockadeLabs.Samples.Skybox
         private void OnDestroy()
         {
             lifetimeCancellationTokenSource.Cancel();
+            lifetimeCancellationTokenSource.Dispose();
+            lifetimeCancellationTokenSource = null;
         }
 
         private async void GetSkyboxStyles()
