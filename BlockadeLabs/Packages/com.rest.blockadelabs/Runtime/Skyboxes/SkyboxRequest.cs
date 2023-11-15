@@ -132,12 +132,12 @@ namespace BlockadeLabs.Skyboxes
         public SkyboxRequest(
             string prompt,
             string controlImagePath,
-            string controlModel = null,
-            string negativeText = null,
-            int? seed = null,
-            int? skyboxStyleId = null,
-            int? remixImagineId = null,
-            bool depth = false)
+            string controlModel,
+            string negativeText,
+            int? seed,
+            int? skyboxStyleId,
+            int? remixImagineId,
+            bool depth)
             : this(
                 prompt,
                 File.OpenRead(controlImagePath),
@@ -219,12 +219,12 @@ namespace BlockadeLabs.Skyboxes
         public SkyboxRequest(
             string prompt,
             Texture2D controlImage,
-            string controlModel = null,
-            string negativeText = null,
-            int? seed = null,
-            int? skyboxStyleId = null,
-            int? remixImagineId = null,
-            bool depth = false)
+            string controlModel,
+            string negativeText,
+            int? seed,
+            int? skyboxStyleId,
+            int? remixImagineId,
+            bool depth)
             : this(
                 prompt,
                 new MemoryStream(controlImage.EncodeToPNG()),
@@ -310,12 +310,12 @@ namespace BlockadeLabs.Skyboxes
             string prompt,
             Stream controlImage,
             string controlImageFileName,
-            string controlModel = null,
-            string negativeText = null,
-            int? seed = null,
-            int? skyboxStyleId = null,
-            int? remixImagineId = null,
-            bool depth = false)
+            string controlModel,
+            string negativeText,
+            int? seed,
+            int? skyboxStyleId,
+            int? remixImagineId,
+            bool depth)
             : this(prompt, negativeText, seed, skyboxStyleId, remixImagineId, depth)
         {
             ControlImage = controlImage;

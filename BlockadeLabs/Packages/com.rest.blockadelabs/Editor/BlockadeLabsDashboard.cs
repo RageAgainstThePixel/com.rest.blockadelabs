@@ -156,7 +156,6 @@ namespace BlockadeLabs.Editor
         private void OnFocus()
         {
             api ??= new BlockadeLabsClient();
-            api.SkyboxEndpoint.EnableDebug = true;
 
             if (!hasFetchedSkyboxStyles)
             {
