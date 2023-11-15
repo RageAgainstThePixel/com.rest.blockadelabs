@@ -4,17 +4,15 @@ using BlockadeLabs.Skyboxes;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel.Composition.Primitives;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Video;
 using Utilities.WebRequestRest;
 using Object = UnityEngine.Object;
 using Progress = UnityEditor.Progress;
-using Task = System.Threading.Tasks.Task;
 
 namespace BlockadeLabs.Editor
 {
@@ -126,7 +124,7 @@ namespace BlockadeLabs.Editor
         private int currentSkyboxStyleId;
 
         [SerializeField]
-        private int currentSkyboxExportId;
+        private int currentSkyboxExportId = 1;
 
         private Vector2 scrollPosition = Vector2.zero;
 
@@ -366,7 +364,7 @@ namespace BlockadeLabs.Editor
 
             try
             {
-                skyboxExportOptions = await api.SkyboxEndpoint.GetAllSkyboxExportOptionsAsync();
+                skyboxExportOptions = (await api.SkyboxEndpoint.GetAllSkyboxExportOptionsAsync()).OrderBy(option => option.Key).ToList();
                 exportOptions = skyboxExportOptions.Select(option => new GUIContent(option.Name)).ToArray();
             }
             catch (Exception e)
@@ -471,7 +469,7 @@ namespace BlockadeLabs.Editor
             {
                 if (skyboxInfo.TryGetAssetCachePath(export.Key, out var cachedPath))
                 {
-                    importTasks.Add(CopyFileAsync(editorDownloadDirectory, cachedPath));
+                    importTasks.Add(CopyFileAsync(editorDownloadDirectory, cachedPath, skyboxInfo, export.Key));
                 }
             }
 
@@ -492,7 +490,7 @@ namespace BlockadeLabs.Editor
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
         }
 
-        private static async Task CopyFileAsync(string directory, string cachedPath)
+        private static async Task CopyFileAsync(string directory, string cachedPath, SkyboxInfo skybox, string exportKey)
         {
             if (!Directory.Exists(directory))
             {
@@ -522,16 +520,88 @@ namespace BlockadeLabs.Editor
             switch (asset)
             {
                 case DefaultAsset:
-                    // Cubemap zip
+                    if (importPath.EndsWith(".zip"))
+                    {
+                        var files = await ExportUtilities.UnZipAsync(importPath);
+                        var textures = new List<Texture2D>();
+
+                        foreach (var file in files)
+                        {
+                            AssetDatabase.ImportAsset(file);
+
+                            if (AssetImporter.GetAtPath(file) is TextureImporter textureImporter)
+                            {
+                                textureImporter.isReadable = true;
+                                textureImporter.mipmapEnabled = false;
+                                textureImporter.alphaIsTransparency = false;
+                                textureImporter.wrapMode = TextureWrapMode.Clamp;
+                                textureImporter.alphaSource = TextureImporterAlphaSource.None;
+                                textureImporter.textureCompression = TextureImporterCompression.Uncompressed;
+                                textureImporter.SaveAndReimport();
+                            }
+
+                            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(file);
+                            textures.Add(texture);
+                        }
+
+                        var cubemap = new Cubemap(textures.First().width, TextureFormat.RGB24, false, true);
+
+                        try
+                        {
+                            foreach (var texture in textures)
+                            {
+                                switch (texture.name)
+                                {
+                                    case "cube_up":
+                                        var rotation = exportKey.Contains("roblox")
+                                            ? ExportUtilities.TextureRotation.Counterclockwise90
+                                            : ExportUtilities.TextureRotation.Rotate180;
+                                        cubemap.SetCubemapTexture(texture.Rotate(rotation), CubemapFace.PositiveY);
+                                        break;
+                                    case "cube_down":
+                                        rotation = exportKey.Contains("roblox")
+                                            ? ExportUtilities.TextureRotation.Clockwise90
+                                            : ExportUtilities.TextureRotation.Rotate180;
+                                        cubemap.SetCubemapTexture(texture.Rotate(rotation), CubemapFace.NegativeY);
+                                        break;
+                                    case "cube_front":
+                                        cubemap.SetCubemapTexture(texture, CubemapFace.PositiveZ);
+                                        break;
+                                    case "cube_back":
+                                        cubemap.SetCubemapTexture(texture, CubemapFace.NegativeZ);
+                                        break;
+                                    case "cube_right":
+                                        cubemap.SetCubemapTexture(texture, CubemapFace.PositiveX);
+                                        break;
+                                    case "cube_left":
+                                        cubemap.SetCubemapTexture(texture, CubemapFace.NegativeX);
+                                        break;
+                                }
+                            }
+
+                            var assetPath = Path.ChangeExtension(importPath, "cubemap");
+                            AssetDatabase.CreateAsset(cubemap, assetPath);
+                            AssetDatabase.DeleteAsset(importPath);
+                            skybox.exportedAssets[exportKey] = cubemap;
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogError($"Failed to import cubemap at {importPath}!\n{e}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"Unhandled asset at {importPath}");
+                    }
                     break;
-                case Texture2D:
+                case Texture2D texture:
                     SetSkyboxTextureImportSettings(importPath);
+                    skybox.exportedAssets[exportKey] = texture;
                     break;
-                case VideoClip:
+                case VideoClip videoClip:
+                    skybox.exportedAssets[exportKey] = videoClip;
                     break;
             }
-
-            await Task.CompletedTask;
         }
 
         private static void SetSkyboxTextureImportSettings(string path)
@@ -670,30 +740,25 @@ namespace BlockadeLabs.Editor
                             {
                                 switch (export.Key)
                                 {
-                                    case "cube-map-png":
-                                        EditorGUILayout.ObjectField(asset, typeof(Cubemap),
-                                            false /*, GUILayout.Height(128f), GUILayout.Width(128f)*/);
-
+                                    case "cube-map-default-png":
+                                    case "cube-map-roblox-png":
+                                        EditorGUILayout.ObjectField(asset, typeof(Cubemap), false);
                                         break;
                                     case "equirectangular-png":
                                     case "equirectangular-jpg":
                                     case "depth-map-png":
                                     case "hdri-hdr":
                                     case "hdri-exr":
-                                        EditorGUILayout.ObjectField(asset, typeof(Texture2D),
-                                            false /*, GUILayout.Height(128f), GUILayout.Width(256f)*/);
-
+                                        EditorGUILayout.ObjectField(asset, typeof(Texture2D), false);
                                         break;
                                     case "video-landscape-mp4":
                                     case "video-portrait-mp4":
                                     case "video-square-mp4":
                                         EditorGUILayout.ObjectField(asset, typeof(VideoClip), false);
-
                                         break;
                                     default:
                                         Debug.LogWarning($"Unhandled export key: {export.Key}");
                                         EditorGUILayout.ObjectField(asset, typeof(Object), false);
-
                                         break;
                                 }
                             }
@@ -717,7 +782,7 @@ namespace BlockadeLabs.Editor
                                     {
                                         if (skybox.TryGetAssetCachePath(export.Key, out var cachedPath))
                                         {
-                                            await CopyFileAsync(editorDownloadDirectory, cachedPath);
+                                            await CopyFileAsync(editorDownloadDirectory, cachedPath, skybox, export.Key);
                                         }
                                     }
                                     catch (Exception e)

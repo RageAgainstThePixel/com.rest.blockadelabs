@@ -56,11 +56,11 @@ namespace BlockadeLabs.Skyboxes
         [Obsolete]
         public SkyboxRequest(
             string prompt,
-            string negativeText = null,
-            int? seed = null,
-            int? skyboxStyleId = null,
-            int? remixImagineId = null,
-            bool depth = false)
+            string negativeText,
+            int? seed,
+            int? skyboxStyleId,
+            int? remixImagineId,
+            bool depth)
         {
             Prompt = prompt;
             NegativeText = negativeText;

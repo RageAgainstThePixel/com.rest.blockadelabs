@@ -4,13 +4,11 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Video;
 using Utilities.Async;
 using Utilities.WebRequestRest;
 using Debug = UnityEngine.Debug;
@@ -130,6 +128,7 @@ namespace BlockadeLabs.Skyboxes
         [JsonProperty("exports")]
         public IReadOnlyDictionary<string, string> Exports { get; }
 
+        // ReSharper disable once InconsistentNaming
         internal readonly Dictionary<string, Object> exportedAssets = new Dictionary<string, Object>();
 
         [JsonIgnore]
@@ -185,9 +184,18 @@ namespace BlockadeLabs.Skyboxes
                                 break;
                             case "cube-map-default-png":
                             case "cube-map-roblox-png":
-                                // TODO download and extract zip
-                                await Rest.DownloadFileAsync(exportUrl, path, cancellationToken: cancellationToken);
-                                //Debug.Log(zipPath);
+                                var zipPath = await Rest.DownloadFileAsync(exportUrl, path, cancellationToken: cancellationToken);
+                                var files = await ExportUtilities.UnZipAsync(zipPath, cancellationToken);
+                                var textures = new List<Texture2D>();
+
+                                foreach (var file in files)
+                                {
+                                    var face = await Rest.DownloadTextureAsync($"file://{file}", cancellationToken: cancellationToken);
+                                    textures.Add(face);
+                                }
+
+                                var cubemap = ExportUtilities.BuildCubemap(textures);
+                                exportedAssets[export.Key] = cubemap;
                                 break;
                             case "hdri-hdr":
                             case "hdri-exr":
