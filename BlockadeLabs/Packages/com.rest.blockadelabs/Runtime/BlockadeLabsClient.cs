@@ -13,11 +13,6 @@ namespace BlockadeLabs
         public BlockadeLabsClient(BlockadeLabsAuthentication authentication = null, BlockadeLabsSettings settings = null)
             : base(authentication ?? BlockadeLabsAuthentication.Default, settings ?? BlockadeLabsSettings.Default)
         {
-            JsonSerializationOptions = new JsonSerializerSettings
-            {
-                DefaultValueHandling = DefaultValueHandling.Ignore
-            };
-
             SkyboxEndpoint = new SkyboxEndpoint(this);
         }
 
@@ -42,7 +37,10 @@ namespace BlockadeLabs
 
         public override bool HasValidAuthentication => !string.IsNullOrWhiteSpace(Authentication?.Info?.ApiKey);
 
-        internal JsonSerializerSettings JsonSerializationOptions { get; }
+        internal static JsonSerializerSettings JsonSerializationOptions { get; } = new JsonSerializerSettings
+        {
+            DefaultValueHandling = DefaultValueHandling.Ignore
+        };
 
         public SkyboxEndpoint SkyboxEndpoint { get; }
     }
