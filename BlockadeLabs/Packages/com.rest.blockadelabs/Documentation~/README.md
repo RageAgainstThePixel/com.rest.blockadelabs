@@ -43,15 +43,15 @@ The recommended installation method is though the unity package manager and [Ope
 ### Table of Contents
 
 - [Authentication](#authentication)
-- [Editor Dashboard](#editor-dashboard) :new:
-  - [Skybox Dashboard](#skybox-dashboard) :new:
-  - [History Dashboard](#history-dashboard) :new:
+- [Editor Dashboard](#editor-dashboard)
+  - [Skybox Dashboard](#skybox-dashboard)
+  - [History Dashboard](#history-dashboard)
 - [Skyboxes](#skyboxes)
   - [Get Skybox Styles](#get-skybox-styles)
-  - [Get Skybox Export Options](#get-skybox-export-options) :new:
+  - [Get Skybox Export Options](#get-skybox-export-options)
   - [Generate Skybox](#generate-skybox)
   - [Get Skybox by Id](#get-skybox)
-  - [Request Skybox Export](#request-skybox-export) :new:
+  - [Request Skybox Export](#request-skybox-export)
   - [Delete Skybox by Id](#delete-skybox)
   - [Get Skybox History](#get-skybox-history)
   - [Cancel Skybox Generation](#cancel-skybox-generation)
