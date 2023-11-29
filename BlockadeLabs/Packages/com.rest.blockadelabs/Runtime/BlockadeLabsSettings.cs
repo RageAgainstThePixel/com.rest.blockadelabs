@@ -8,36 +8,61 @@ namespace BlockadeLabs
 {
     public sealed class BlockadeLabsSettings : ISettings
     {
+        /// <summary>
+        /// Creates a new instance of <see cref="BlockadeLabsSettings"/> with default <see cref="BlockadeLabsSettingsInfo"/>.
+        /// </summary>
         public BlockadeLabsSettings()
         {
-            if (cachedDefault != null) { return; }
-
-            var config = Resources.LoadAll<BlockadeLabsConfiguration>(string.Empty)
-                .FirstOrDefault(asset => asset != null);
-
-            if (config != null)
-            {
-                Info = new BlockadeLabsSettingsInfo(config.ProxyDomain);
-                Default = new BlockadeLabsSettings(Info);
-            }
-            else
-            {
-                Info = new BlockadeLabsSettingsInfo();
-                Default = new BlockadeLabsSettings(Info);
-            }
+            Info = new BlockadeLabsSettingsInfo();
+            cachedDefault = this;
         }
 
-        public BlockadeLabsSettings(BlockadeLabsSettingsInfo settingsInfo)
-            => Info = settingsInfo;
+        /// <summary>
+        /// Creates a new instance of <see cref="BlockadeLabsSettings"/> with provided <see cref="configuration"/>.
+        /// </summary>
+        /// <param name="configuration"><see cref="BlockadeLabsConfiguration"/>.</param>
+        public BlockadeLabsSettings(BlockadeLabsConfiguration configuration)
+        {
+            if (configuration == null)
+            {
+                Debug.LogWarning($"This can be speed up by directly passing a {nameof(BlockadeLabsConfiguration)} to the {nameof(BlockadeLabsSettings)}.ctr");
+                configuration = Resources.LoadAll<BlockadeLabsConfiguration>(string.Empty).FirstOrDefault(asset => asset != null);
+            }
 
+            if (configuration == null)
+            {
+                throw new MissingReferenceException($"Failed to find a valid {nameof(BlockadeLabsConfiguration)}!");
+            }
+
+            Info = new BlockadeLabsSettingsInfo(configuration.ProxyDomain);
+            cachedDefault = this;
+        }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="BlockadeLabsSettings"/> with the provided <see cref="settingsInfo"/>.
+        /// </summary>
+        /// <param name="settingsInfo"><see cref="BlockadeLabsSettingsInfo"/>.</param>
+        public BlockadeLabsSettings(BlockadeLabsSettingsInfo settingsInfo)
+        {
+            Info = settingsInfo;
+            cachedDefault = this;
+        }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="BlockadeLabsSettings"/>.
+        /// </summary>
+        /// <param name="domain">Base api domain.</param>
         public BlockadeLabsSettings(string domain)
-            => Info = new BlockadeLabsSettingsInfo(domain);
+        {
+            Info = new BlockadeLabsSettingsInfo(domain);
+            cachedDefault = this;
+        }
 
         private static BlockadeLabsSettings cachedDefault;
 
         public static BlockadeLabsSettings Default
         {
-            get => cachedDefault ??= new BlockadeLabsSettings();
+            get => cachedDefault ??= new BlockadeLabsSettings(configuration: null);
             internal set => cachedDefault = value;
         }
 

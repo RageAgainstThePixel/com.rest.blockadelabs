@@ -8,7 +8,7 @@ using Utilities.WebRequestRest.Interfaces;
 
 namespace BlockadeLabs
 {
-    public sealed class BlockadeLabsAuthentication : AbstractAuthentication<BlockadeLabsAuthentication, BlockadeLabsAuthInfo>
+    public sealed class BlockadeLabsAuthentication : AbstractAuthentication<BlockadeLabsAuthentication, BlockadeLabsAuthInfo, BlockadeLabsConfiguration>
     {
         internal const string CONFIG_FILE = ".blockadelabs";
         private const string BLOCKADE_LABS_API_KEY = nameof(BLOCKADE_LABS_API_KEY);
@@ -16,33 +16,35 @@ namespace BlockadeLabs
         public static implicit operator BlockadeLabsAuthentication(string apiKey) => new BlockadeLabsAuthentication(apiKey);
 
         /// <summary>
-        /// Instantiates a new Authentication object that will load the default config.
+        /// Instantiates an empty Authentication object.
         /// </summary>
-        public BlockadeLabsAuthentication()
-        {
-            if (cachedDefault != null)
-            {
-                return;
-            }
-
-            cachedDefault = (LoadFromAsset<BlockadeLabsConfiguration>() ??
-                             LoadFromDirectory()) ??
-                             LoadFromDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) ??
-                             LoadFromEnvironment();
-            Info = cachedDefault?.Info;
-        }
+        public BlockadeLabsAuthentication() { }
 
         /// <summary>
         /// Instantiates a new Authentication object with the given <paramref name="apiKey"/>, which may be <see langword="null"/>.
         /// </summary>
         /// <param name="apiKey">The API key, required to access the API endpoint.</param>
-        public BlockadeLabsAuthentication(string apiKey) => Info = new BlockadeLabsAuthInfo(apiKey);
+        public BlockadeLabsAuthentication(string apiKey)
+        {
+            Info = new BlockadeLabsAuthInfo(apiKey);
+            cachedDefault = this;
+        }
 
         /// <summary>
         /// Instantiates a new Authentication object with the given <paramref name="authInfo"/>, which may be <see langword="null"/>.
         /// </summary>
         /// <param name="authInfo"></param>
-        public BlockadeLabsAuthentication(BlockadeLabsAuthInfo authInfo) => Info = authInfo;
+        public BlockadeLabsAuthentication(BlockadeLabsAuthInfo authInfo)
+        {
+            Info = authInfo;
+            cachedDefault = this;
+        }
+
+        /// <summary>
+        /// Instantiates a new Authentication object with the given <see cref="configuration"/>.
+        /// </summary>
+        /// <param name="configuration"><see cref="BlockadeLabsConfiguration"/>.</param>
+        public BlockadeLabsAuthentication(BlockadeLabsConfiguration configuration) : this(configuration.ApiKey) { }
 
         /// <inheritdoc />
         public override BlockadeLabsAuthInfo Info { get; }
@@ -56,20 +58,20 @@ namespace BlockadeLabs
         /// </summary>
         public static BlockadeLabsAuthentication Default
         {
-            get => cachedDefault ??= new BlockadeLabsAuthentication();
-            internal set => cachedDefault = value;
+            get => cachedDefault ??= new BlockadeLabsAuthentication().LoadDefault();
+            set => cachedDefault = value;
         }
 
-        /// <inheritdoc />
-        public override BlockadeLabsAuthentication LoadFromAsset<T>()
-            => Resources.LoadAll<T>(string.Empty)
-                .Where(asset => asset != null)
-                .Where(asset => asset is BlockadeLabsConfiguration config &&
-                                !string.IsNullOrWhiteSpace(config.ApiKey))
-                .Select(asset => asset is BlockadeLabsConfiguration config
-                    ? new BlockadeLabsAuthentication(config.ApiKey)
-                    : null)
-                .FirstOrDefault();
+        public override BlockadeLabsAuthentication LoadFromAsset(BlockadeLabsConfiguration configuration = null)
+        {
+            if (configuration == null)
+            {
+                Debug.LogWarning($"This can be speed this up by passing a {nameof(BlockadeLabsConfiguration)} to the {nameof(BlockadeLabsAuthentication)}.ctr");
+                configuration = Resources.LoadAll<BlockadeLabsConfiguration>(string.Empty).FirstOrDefault(o => o != null);
+            }
+
+            return configuration != null ? new BlockadeLabsAuthentication(configuration) : null;
+        }
 
         /// <inheritdoc />
         public override BlockadeLabsAuthentication LoadFromEnvironment()
@@ -85,6 +87,11 @@ namespace BlockadeLabs
             if (string.IsNullOrWhiteSpace(directory))
             {
                 directory = Environment.CurrentDirectory;
+            }
+
+            if (string.IsNullOrWhiteSpace(filename))
+            {
+                filename = CONFIG_FILE;
             }
 
             BlockadeLabsAuthInfo tempAuthInfo = null;
@@ -119,12 +126,11 @@ namespace BlockadeLabs
                             var part = parts[i];
                             var nextPart = parts[i + 1];
 
-                            switch (part)
+                            apiKey = part switch
                             {
-                                case BLOCKADE_LABS_API_KEY:
-                                    apiKey = nextPart.Trim();
-                                    break;
-                            }
+                                BLOCKADE_LABS_API_KEY => nextPart.Trim(),
+                                _ => apiKey
+                            };
                         }
                     }
 
@@ -141,13 +147,7 @@ namespace BlockadeLabs
                 }
             }
 
-            if (tempAuthInfo == null ||
-                string.IsNullOrEmpty(tempAuthInfo.ApiKey))
-            {
-                return null;
-            }
-
-            return new BlockadeLabsAuthentication(tempAuthInfo);
+            return string.IsNullOrEmpty(tempAuthInfo?.ApiKey) ? null : new BlockadeLabsAuthentication(tempAuthInfo);
         }
     }
 }
