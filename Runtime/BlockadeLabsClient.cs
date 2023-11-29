@@ -10,6 +10,14 @@ namespace BlockadeLabs
 {
     public sealed class BlockadeLabsClient : BaseClient<BlockadeLabsAuthentication, BlockadeLabsSettings>
     {
+        /// <summary>
+        /// Creates a new client for the BlockadeLabs API, handling auth and allowing for access to various API endpoints.
+        /// </summary>
+        /// <param name="authentication">The API authentication information to use for API calls,
+        /// or <see langword="null"/> to attempt to use the <see cref="BlockadeLabsAuthentication.Default"/>,
+        /// potentially loading from environment vars or from a config file.</param>
+        /// <param name="settings">Optional, <see cref="BlockadeLabsSettings"/> for specifying a proxy domain.</param>
+        /// <exception cref="AuthenticationException">Raised when authentication details are missing or invalid.</exception>
         public BlockadeLabsClient(BlockadeLabsAuthentication authentication = null, BlockadeLabsSettings settings = null)
             : base(authentication ?? BlockadeLabsAuthentication.Default, settings ?? BlockadeLabsSettings.Default)
         {
@@ -18,6 +26,11 @@ namespace BlockadeLabs
 
         protected override void ValidateAuthentication()
         {
+            if (Authentication?.Info == null)
+            {
+                throw new InvalidCredentialException($"Invalid {nameof(BlockadeLabsAuthentication)}");
+            }
+
             if (!HasValidAuthentication)
             {
                 throw new AuthenticationException("You must provide API authentication.  Please refer to https://github.com/RageAgainstThePixel/com.rest.blockadelabs#authentication for details.");

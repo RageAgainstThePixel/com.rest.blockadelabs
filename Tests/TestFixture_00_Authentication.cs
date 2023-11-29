@@ -22,7 +22,7 @@ namespace BlockadeLabs.Tests
         [Test]
         public void Test_01_GetAuthFromEnv()
         {
-            var auth = BlockadeLabsAuthentication.Default.LoadFromEnvironment();
+            var auth = new BlockadeLabsAuthentication().LoadFromEnvironment();
             Assert.IsNotNull(auth);
             Assert.IsNotNull(auth.Info.ApiKey);
             Assert.IsNotEmpty(auth.Info.ApiKey);
@@ -31,7 +31,7 @@ namespace BlockadeLabs.Tests
         [Test]
         public void Test_02_GetAuthFromFile()
         {
-            var auth = BlockadeLabsAuthentication.Default.LoadFromPath(Path.GetFullPath(BlockadeLabsAuthentication.CONFIG_FILE));
+            var auth = new BlockadeLabsAuthentication().LoadFromPath(Path.GetFullPath(BlockadeLabsAuthentication.CONFIG_FILE));
             Assert.IsNotNull(auth);
             Assert.IsNotNull(auth.Info.ApiKey);
             Assert.AreEqual("key-test12", auth.Info.ApiKey);
@@ -40,7 +40,7 @@ namespace BlockadeLabs.Tests
         [Test]
         public void Test_03_GetAuthFromNonExistentFile()
         {
-            var auth = BlockadeLabsAuthentication.Default.LoadFromDirectory(filename: "bad.config");
+            var auth = new BlockadeLabsAuthentication().LoadFromDirectory(filename: "bad.config");
             Assert.IsNull(auth);
         }
 
@@ -63,13 +63,14 @@ namespace BlockadeLabs.Tests
                 cleanup = true;
             }
 
-            var config = AssetDatabase.LoadAssetAtPath<BlockadeLabsConfiguration>(configPath);
-            var auth = BlockadeLabsAuthentication.Default.LoadFromAsset<BlockadeLabsConfiguration>();
+            var configuration = AssetDatabase.LoadAssetAtPath<BlockadeLabsConfiguration>(configPath);
+            Assert.IsNotNull(configuration);
+            var auth = new BlockadeLabsAuthentication().LoadFromAsset(configuration);
 
             Assert.IsNotNull(auth);
             Assert.IsNotNull(auth.Info.ApiKey);
             Assert.IsNotEmpty(auth.Info.ApiKey);
-            Assert.AreEqual(auth.Info.ApiKey, config.ApiKey);
+            Assert.AreEqual(auth.Info.ApiKey, configuration.ApiKey);
 
             if (cleanup)
             {
@@ -82,13 +83,12 @@ namespace BlockadeLabs.Tests
         public void Test_05_Authentication()
         {
             var defaultAuth = BlockadeLabsAuthentication.Default;
-            var manualAuth = new BlockadeLabsAuthentication("key-testAA");
 
             Assert.IsNotNull(defaultAuth);
             Assert.IsNotNull(defaultAuth.Info.ApiKey);
             Assert.AreEqual(defaultAuth.Info.ApiKey, BlockadeLabsAuthentication.Default.Info.ApiKey);
 
-            BlockadeLabsAuthentication.Default = new BlockadeLabsAuthentication("key-testAA");
+            var manualAuth = new BlockadeLabsAuthentication("key-testAA");
             Assert.IsNotNull(manualAuth);
             Assert.IsNotNull(manualAuth.Info.ApiKey);
             Assert.AreEqual(manualAuth.Info.ApiKey, BlockadeLabsAuthentication.Default.Info.ApiKey);
@@ -154,6 +154,10 @@ namespace BlockadeLabs.Tests
             {
                 File.Delete(BlockadeLabsAuthentication.CONFIG_FILE);
             }
+
+
+            BlockadeLabsSettings.Default = null;
+            BlockadeLabsAuthentication.Default = null;
         }
     }
 }
