@@ -42,7 +42,7 @@ The recommended installation method is though the unity package manager and [Ope
 
 ### Table of Contents
 
-- [Authentication](#authentication)
+- [Authentication](#authentication) :construction:
 - [Editor Dashboard](#editor-dashboard)
   - [Skybox Dashboard](#skybox-dashboard)
   - [History Dashboard](#history-dashboard)
