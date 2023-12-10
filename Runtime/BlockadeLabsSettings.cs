@@ -29,13 +29,16 @@ namespace BlockadeLabs
                 configuration = Resources.LoadAll<BlockadeLabsConfiguration>(string.Empty).FirstOrDefault(asset => asset != null);
             }
 
-            if (configuration == null)
+            if (configuration != null)
             {
-                throw new MissingReferenceException($"Failed to find a valid {nameof(BlockadeLabsConfiguration)}!");
+                Info = new BlockadeLabsSettingsInfo(configuration.ProxyDomain);
+                cachedDefault = this;
             }
-
-            Info = new BlockadeLabsSettingsInfo(configuration.ProxyDomain);
-            cachedDefault = this;
+            else
+            {
+                Info = new BlockadeLabsSettingsInfo();
+                cachedDefault = this;
+            }
         }
 
         /// <summary>
