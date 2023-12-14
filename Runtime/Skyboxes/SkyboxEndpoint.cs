@@ -167,7 +167,7 @@ namespace BlockadeLabs.Skyboxes
                 skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
             }
 
-            await skyboxInfo.LoadAssetsAsync(cancellationToken);
+            await skyboxInfo.LoadAssetsAsync(EnableDebug, cancellationToken);
             return skyboxInfo;
         }
 
