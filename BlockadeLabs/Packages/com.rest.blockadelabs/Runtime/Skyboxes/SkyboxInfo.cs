@@ -144,13 +144,14 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
         [Obsolete("Use LoadAssetsAsync")]
         public async Task LoadTexturesAsync(CancellationToken cancellationToken = default)
-            => await LoadAssetsAsync(cancellationToken);
+            => await LoadAssetsAsync(false, cancellationToken);
 
         /// <summary>
         /// Downloads and loads all of the assets associated with this skybox.
         /// </summary>
+        /// <param name="debug">Optional, debug downloads.</param>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
-        public async Task LoadAssetsAsync(CancellationToken cancellationToken = default)
+        public async Task LoadAssetsAsync(bool debug = false, CancellationToken cancellationToken = default)
         {
             async Task DownloadThumbnail()
             {
@@ -158,7 +159,7 @@ namespace BlockadeLabs.Skyboxes
                 {
                     await Awaiters.UnityMainThread;
                     Rest.TryGetFileNameFromUrl(ThumbUrl, out var filename);
-                    Thumbnail = await Rest.DownloadTextureAsync(ThumbUrl, fileName: $"{ObfuscatedId}-thumb{Path.GetExtension(filename)}", cancellationToken: cancellationToken);
+                    Thumbnail = await Rest.DownloadTextureAsync(ThumbUrl, fileName: $"{ObfuscatedId}-thumb{Path.GetExtension(filename)}", null, debug, cancellationToken);
                 }
             }
 
@@ -179,18 +180,18 @@ namespace BlockadeLabs.Skyboxes
                             case "depth-map-png":
                             case "equirectangular-png":
                             case "equirectangular-jpg":
-                                var texture = await Rest.DownloadTextureAsync(exportUrl, path, cancellationToken: cancellationToken);
+                                var texture = await Rest.DownloadTextureAsync(exportUrl, path, null, debug, cancellationToken);
                                 exportedAssets[export.Key] = texture;
                                 break;
                             case "cube-map-default-png":
                             case "cube-map-roblox-png":
-                                var zipPath = await Rest.DownloadFileAsync(exportUrl, path, cancellationToken: cancellationToken);
+                                var zipPath = await Rest.DownloadFileAsync(exportUrl, path, null, debug, cancellationToken);
                                 var files = await ExportUtilities.UnZipAsync(zipPath, cancellationToken);
                                 var textures = new List<Texture2D>();
 
                                 foreach (var file in files)
                                 {
-                                    var face = await Rest.DownloadTextureAsync($"file://{file}", cancellationToken: cancellationToken);
+                                    var face = await Rest.DownloadTextureAsync($"file://{file}", null, null, debug, cancellationToken);
                                     textures.Add(face);
                                 }
 
@@ -202,7 +203,7 @@ namespace BlockadeLabs.Skyboxes
                             case "video-landscape-mp4":
                             case "video-portrait-mp4":
                             case "video-square-mp4":
-                                await Rest.DownloadFileAsync(exportUrl, path, cancellationToken: cancellationToken);
+                                await Rest.DownloadFileAsync(exportUrl, path, null, debug, cancellationToken);
                                 break;
                             default:
                                 Debug.LogWarning($"No download task defined for {export.Key}!");
