@@ -4,7 +4,6 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -77,7 +76,18 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="pollingInterval">Optional, polling interval in seconds.</param>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
         /// <returns><see cref="SkyboxInfo"/>.</returns>
-        public async Task<SkyboxInfo> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, SkyboxExportOption exportOption = null, int? pollingInterval = null, CancellationToken cancellationToken = default)
+        public async Task<SkyboxInfo> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, SkyboxExportOption exportOption, int? pollingInterval = null, CancellationToken cancellationToken = default)
+            => await GenerateSkyboxAsync(skyboxRequest, new[] { exportOption }, pollingInterval, cancellationToken);
+
+        /// <summary>
+        /// Generate a skybox image.
+        /// </summary>
+        /// <param name="skyboxRequest"><see cref="SkyboxRequest"/>.</param>
+        /// <param name="exportOptions">Optional, <see cref="SkyboxExportOption"/>s.</param>
+        /// <param name="pollingInterval">Optional, polling interval in seconds.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns><see cref="SkyboxInfo"/>.</returns>
+        public async Task<SkyboxInfo> GenerateSkyboxAsync(SkyboxRequest skyboxRequest, SkyboxExportOption[] exportOptions = null, int? pollingInterval = null, CancellationToken cancellationToken = default)
         {
             var formData = new WWWForm();
             formData.AddField("prompt", skyboxRequest.Prompt);
@@ -105,6 +115,11 @@ namespace BlockadeLabs.Skyboxes
             if (skyboxRequest.RemixImagineId.HasValue)
             {
                 formData.AddField("remix_imagine_id", skyboxRequest.RemixImagineId.Value);
+            }
+
+            if (skyboxRequest.HqDepth.HasValue)
+            {
+                formData.AddField("return_depth_hq", skyboxRequest.HqDepth.Value.ToString());
             }
 
             if (skyboxRequest.ControlImage != null)
@@ -149,24 +164,23 @@ namespace BlockadeLabs.Skyboxes
                 throw new Exception($"Failed to generate skybox! {skyboxInfo.Id} -> {skyboxInfo.Status}\nError: {skyboxInfo.ErrorMessage}\n{skyboxInfo}");
             }
 
-            if (exportOption != null)
+            var exportTasks = new List<Task>();
+
+            if (exportOptions != null)
             {
-                skyboxInfo = await ExportSkyboxAsync(skyboxInfo, exportOption, pollingInterval, cancellationToken);
+                foreach (var exportOption in exportOptions)
+                {
+                    exportTasks.Add(ExportSkyboxAsync(skyboxInfo, exportOption, pollingInterval, cancellationToken));
+                }
             }
             else
             {
-                var exportOptions = await GetAllSkyboxExportOptionsAsync(cancellationToken);
-                var info = skyboxInfo;
-                var pngExportTasks = new List<Task>
-                {
-                    ExportSkyboxAsync(info, exportOptions.FirstOrDefault(option => option.Key.Equals("equirectangular-png")), pollingInterval, cancellationToken),
-                    ExportSkyboxAsync(info, exportOptions.FirstOrDefault(option => option.Key.Equals("depth-map-png")), pollingInterval, cancellationToken)
-                };
-
-                await Task.WhenAll(pngExportTasks).ConfigureAwait(true);
-                skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
+                exportTasks.Add(ExportSkyboxAsync(skyboxInfo, DefaultExportOptions.Equirectangular_PNG, pollingInterval, cancellationToken));
+                exportTasks.Add(ExportSkyboxAsync(skyboxInfo, DefaultExportOptions.DepthMap_PNG, pollingInterval, cancellationToken));
             }
 
+            await Task.WhenAll(exportTasks).ConfigureAwait(true);
+            skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
             await skyboxInfo.LoadAssetsAsync(EnableDebug, cancellationToken);
             return skyboxInfo;
         }

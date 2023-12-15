@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Scripting;
 using Utilities.Async;
 using Utilities.WebRequestRest;
 using Debug = UnityEngine.Debug;
@@ -16,8 +17,10 @@ using Object = UnityEngine.Object;
 
 namespace BlockadeLabs.Skyboxes
 {
+    [Preserve]
     public sealed class SkyboxInfo
     {
+        [Preserve]
         [JsonConstructor]
         public SkyboxInfo(
             [JsonProperty("id")] int id,
@@ -57,30 +60,37 @@ namespace BlockadeLabs.Skyboxes
             CompletedAt = completedAt;
             ErrorMessage = errorMessage;
             exports ??= new Dictionary<string, string>();
-            exports.TryAdd("equirectangular-png", mainTextureUrl);
-            exports.TryAdd("depth-map-png", depthTextureUrl);
+            exports.TryAdd(SkyboxExportOption.Equirectangular_PNG, mainTextureUrl);
+            exports.TryAdd(SkyboxExportOption.DepthMap_PNG, depthTextureUrl);
             Exports = exports;
         }
 
+        [Preserve]
         [JsonProperty("id")]
         public int Id { get; }
 
+        [Preserve]
         [JsonProperty("skybox_style_id")]
         public int SkyboxStyleId { get; }
 
+        [Preserve]
         [JsonProperty("skybox_style_name")]
         public string SkyboxStyleName { get; }
 
+        [Preserve]
         [JsonProperty("status")]
         [JsonConverter(typeof(StringEnumConverter))]
         public Status Status { get; }
 
+        [Preserve]
         [JsonProperty("queue_position")]
         public int QueuePosition { get; }
 
+        [Preserve]
         [JsonProperty("type")]
         public string Type { get; }
 
+        [Preserve]
         [JsonProperty("file_url")]
         public string MainTextureUrl { get; private set; }
 
@@ -88,60 +98,78 @@ namespace BlockadeLabs.Skyboxes
         [Obsolete("Get texture from ExportedAssets")]
         public Texture2D MainTexture { get; internal set; }
 
+        [Preserve]
         [JsonProperty("thumb_url")]
         public string ThumbUrl { get; }
 
+        [Preserve]
         [JsonIgnore]
         public Texture2D Thumbnail { get; internal set; }
 
+        [Preserve]
         [JsonProperty("depth_map_url")]
         public string DepthTextureUrl { get; private set; }
 
+        [Preserve]
         [JsonIgnore]
         [Obsolete("Get depth from ExportedAssets")]
         public Texture2D DepthTexture { get; internal set; }
 
+        [Preserve]
         [JsonProperty("title")]
         public string Title { get; }
 
+        [Preserve]
         [JsonProperty("obfuscated_id")]
         public string ObfuscatedId { get; }
 
+        [Preserve]
         [JsonProperty("created_at")]
         public DateTime CreatedAt { get; }
 
+        [Preserve]
         [JsonProperty("updated_at")]
         public DateTime UpdatedAt { get; }
 
+        [Preserve]
         [JsonProperty("dispatched_at")]
         public DateTime DispatchedAt { get; }
 
+        [Preserve]
         [JsonProperty("processing_at")]
         public DateTime ProcessingAt { get; }
 
+        [Preserve]
         [JsonProperty("completed_at")]
         public DateTime CompletedAt { get; }
 
+        [Preserve]
         [JsonProperty("error_message")]
         public string ErrorMessage { get; }
 
+        [Preserve]
         [JsonProperty("exports")]
         public IReadOnlyDictionary<string, string> Exports { get; }
 
+        [Preserve]
         // ReSharper disable once InconsistentNaming
         internal readonly Dictionary<string, Object> exportedAssets = new Dictionary<string, Object>();
 
+        [Preserve]
         [JsonIgnore]
         public IReadOnlyDictionary<string, Object> ExportedAssets => exportedAssets;
 
+        [Preserve]
         public override string ToString() => JsonConvert.SerializeObject(this, Formatting.Indented, BlockadeLabsClient.JsonSerializationOptions);
 
+        [Preserve]
         public static implicit operator int(SkyboxInfo skyboxInfo) => skyboxInfo.Id;
 
         /// <summary>
         /// Loads the textures for this skybox.
         /// </summary>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        [Preserve]
         [Obsolete("Use LoadAssetsAsync")]
         public async Task LoadTexturesAsync(CancellationToken cancellationToken = default)
             => await LoadAssetsAsync(false, cancellationToken);
@@ -151,6 +179,7 @@ namespace BlockadeLabs.Skyboxes
         /// </summary>
         /// <param name="debug">Optional, debug downloads.</param>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        [Preserve]
         public async Task LoadAssetsAsync(bool debug = false, CancellationToken cancellationToken = default)
         {
             async Task DownloadThumbnail()
@@ -177,14 +206,14 @@ namespace BlockadeLabs.Skyboxes
 
                         switch (export.Key)
                         {
-                            case "depth-map-png":
-                            case "equirectangular-png":
-                            case "equirectangular-jpg":
+                            case SkyboxExportOption.DepthMap_PNG:
+                            case SkyboxExportOption.Equirectangular_PNG:
+                            case SkyboxExportOption.Equirectangular_JPG:
                                 var texture = await Rest.DownloadTextureAsync(exportUrl, path, null, debug, cancellationToken);
                                 exportedAssets[export.Key] = texture;
                                 break;
-                            case "cube-map-default-png":
-                            case "cube-map-roblox-png":
+                            case SkyboxExportOption.CubeMap_PNG:
+                            case SkyboxExportOption.CubeMap_Roblox_PNG:
                                 var zipPath = await Rest.DownloadFileAsync(exportUrl, path, null, debug, cancellationToken);
                                 var files = await ExportUtilities.UnZipAsync(zipPath, cancellationToken);
                                 var textures = new List<Texture2D>();
@@ -198,11 +227,11 @@ namespace BlockadeLabs.Skyboxes
                                 var cubemap = ExportUtilities.BuildCubemap(textures);
                                 exportedAssets[export.Key] = cubemap;
                                 break;
-                            case "hdri-hdr":
-                            case "hdri-exr":
-                            case "video-landscape-mp4":
-                            case "video-portrait-mp4":
-                            case "video-square-mp4":
+                            case SkyboxExportOption.HDRI_HDR:
+                            case SkyboxExportOption.HDRI_EXR:
+                            case SkyboxExportOption.Video_LandScape_MP4:
+                            case SkyboxExportOption.Video_Portrait_MP4:
+                            case SkyboxExportOption.Video_Square_MP4:
                                 await Rest.DownloadFileAsync(exportUrl, path, null, debug, cancellationToken);
                                 break;
                             default:
@@ -226,6 +255,7 @@ namespace BlockadeLabs.Skyboxes
             await Task.WhenAll(downloadTasks).ConfigureAwait(true);
         }
 
+        [Preserve]
         public bool TryGetAssetCachePath(string key, out string localCachedPath)
         {
             if (Exports.TryGetValue(key, out var exportUrl) &&
@@ -239,6 +269,7 @@ namespace BlockadeLabs.Skyboxes
             return false;
         }
 
+        [Preserve]
         public bool TryGetAsset<T>(string key, out T asset) where T : Object
         {
             if (ExportedAssets.TryGetValue(key, out var obj))

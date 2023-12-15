@@ -739,20 +739,20 @@ namespace BlockadeLabs.Editor
                             {
                                 switch (export.Key)
                                 {
-                                    case "cube-map-default-png":
-                                    case "cube-map-roblox-png":
+                                    case SkyboxExportOption.CubeMap_PNG:
+                                    case SkyboxExportOption.CubeMap_Roblox_PNG:
                                         EditorGUILayout.ObjectField(asset, typeof(Cubemap), false);
                                         break;
-                                    case "equirectangular-png":
-                                    case "equirectangular-jpg":
-                                    case "depth-map-png":
-                                    case "hdri-hdr":
-                                    case "hdri-exr":
+                                    case SkyboxExportOption.Equirectangular_JPG:
+                                    case SkyboxExportOption.Equirectangular_PNG:
+                                    case SkyboxExportOption.DepthMap_PNG:
+                                    case SkyboxExportOption.HDRI_HDR:
+                                    case SkyboxExportOption.HDRI_EXR:
                                         EditorGUILayout.ObjectField(asset, typeof(Texture2D), false);
                                         break;
-                                    case "video-landscape-mp4":
-                                    case "video-portrait-mp4":
-                                    case "video-square-mp4":
+                                    case SkyboxExportOption.Video_LandScape_MP4:
+                                    case SkyboxExportOption.Video_Portrait_MP4:
+                                    case SkyboxExportOption.Video_Square_MP4:
                                         EditorGUILayout.ObjectField(asset, typeof(VideoClip), false);
                                         break;
                                     default:
