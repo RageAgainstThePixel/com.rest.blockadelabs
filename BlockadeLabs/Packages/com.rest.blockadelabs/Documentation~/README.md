@@ -166,6 +166,11 @@ foreach (var exportOption in exportOptions)
 {
     Debug.Log($"{exportOption.Id}: {exportOption.Name} | {exportOption.Key}");
 }
+
+var request = new SkyboxRequest("mars", enhancePrompt: true);
+// Generates ALL export options for the skybox
+var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, exportOptions);
+Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
 ```
 
 #### [Generate Skybox](https://api-documentation.blockadelabs.com/api/skybox.html#generate-skybox)
@@ -178,7 +183,7 @@ var request = new SkyboxRequest("mars", enhancePrompt: true);
 var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
 Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
 
-if (skyboxInfo.TryGetAsset<Texture2D>("equirectangular-png", out var texture))
+if (skyboxInfo.TryGetAsset<Texture2D>(SkyboxExportOption.Equirectangular_PNG, out var texture))
 {
     skyboxMaterial.mainTexture = texture;
 }
@@ -193,10 +198,10 @@ var skyboxId = 42;
 var api = new BlockadeLabsClient();
 var skyboxInfo = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxId);
 Debug.Log($"Skybox: {result.Id}");
-// Note: If you wish to use the returned skybox textures you'll need to additionally call await SkyboxInfo.LoadAssetsAsync(); before you can assign them to a material property.
+// Note: If you wish to use the returned skybox info textures you'll need to additionally call await SkyboxInfo.LoadAssetsAsync(); before you can assign them to a material property.
 await skyboxInfo.LoadAssetsAsync();
 
-if (skyboxInfo.TryGetAsset<Texture2D>("equirectangular-png", out var texture))
+if (skyboxInfo.TryGetAsset<Texture2D>(SkyboxExportOption.Equirectangular_PNG, out var texture))
 {
     skyboxMaterial.mainTexture = texture;
 }
@@ -206,18 +211,18 @@ if (skyboxInfo.TryGetAsset<Texture2D>("equirectangular-png", out var texture))
 
 Exports the skybox with the requested export type.
 
+> Note: You can also specify the export types when initially generating a skybox.
+
 ```csharp
 var skyboxId = 42;
 var api = new BlockadeLabsClient();
 var skyboxInfo = await api.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxId);
-var exportOptions = await api.SkyboxEndpoint.GetAllSkyboxExportOptionsAsync();
-var exportOption = exportOptions.FirstOrDefault(option => option.Key == "depth-map-png");
-skyboxInfo = await api.SkyboxEndpoint.ExportSkyboxAsync(skyboxInfo, exportOption);
+skyboxInfo = await api.SkyboxEndpoint.ExportSkyboxAsync(skyboxInfo, DefaultExportOptions.DepthMap_PNG);
 await skyboxInfo.LoadAssetsAsync();
 
-if (skyboxInfo.TryGetAsset<Texture2D>("depth-map-png", out var texture))
+if (skyboxInfo.TryGetAsset<Texture2D>(SkyboxExportOption.DepthMap_PNG, out var texture))
 {
-    skyboxMaterial.depthTexture = skyboxInfo.DepthTexture;
+    skyboxMaterial.depthTexture = texture;
 }
 ```
 

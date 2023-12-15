@@ -8,9 +8,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Unity.SharpZipLib.Zip;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace BlockadeLabs
 {
+    [Preserve]
     internal static class ExportUtilities
     {
         /// <summary>
@@ -19,6 +21,7 @@ namespace BlockadeLabs
         /// <param name="path"></param>
         /// <param name="cancellationToken"></param>
         /// <returns>List of files in the archive.</returns>
+        [Preserve]
         internal static async Task<IReadOnlyList<string>> UnZipAsync(string path, CancellationToken cancellationToken = default)
         {
             path = path.Replace("file://", string.Empty);
@@ -103,6 +106,7 @@ namespace BlockadeLabs
         /// </summary>
         /// <param name="textures">List of local files to be used to create <see cref="Cubemap"/>.</param>
         /// <returns><see cref="Cubemap"/></returns>
+        [Preserve]
         internal static Cubemap BuildCubemap(IReadOnlyList<Texture2D> textures)
         {
             if (textures is not { Count: 6 })
@@ -141,6 +145,7 @@ namespace BlockadeLabs
             return cubemap;
         }
 
+        [Preserve]
         internal enum TextureRotation
         {
             Clockwise90,
@@ -148,6 +153,7 @@ namespace BlockadeLabs
             Rotate180
         }
 
+        [Preserve]
         internal static Texture2D Rotate(this Texture2D texture, TextureRotation rotation)
         {
             var width = texture.width;
