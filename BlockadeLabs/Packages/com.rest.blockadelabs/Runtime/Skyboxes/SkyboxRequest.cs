@@ -37,13 +37,17 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="remixImagineId">
         /// ID of a previously generated skybox.
         /// </param>
+        /// <param name="hqDepth">
+        /// Request for high quality depth map. It will be returned in the depth_map_url parameter. (default: false)
+        /// </param>
         public SkyboxRequest(
             string prompt,
             string negativeText = null,
             bool? enhancePrompt = null,
             int? seed = null,
             int? skyboxStyleId = null,
-            int? remixImagineId = null)
+            int? remixImagineId = null,
+            bool? hqDepth = null)
         {
             Prompt = prompt;
             NegativeText = negativeText;
@@ -51,23 +55,7 @@ namespace BlockadeLabs.Skyboxes
             Seed = seed;
             SkyboxStyleId = skyboxStyleId;
             RemixImagineId = remixImagineId;
-        }
-
-        [Obsolete]
-        public SkyboxRequest(
-            string prompt,
-            string negativeText,
-            int? seed,
-            int? skyboxStyleId,
-            int? remixImagineId,
-            bool depth)
-        {
-            Prompt = prompt;
-            NegativeText = negativeText;
-            Seed = seed;
-            SkyboxStyleId = skyboxStyleId;
-            RemixImagineId = remixImagineId;
-            Depth = depth;
+            HqDepth = hqDepth;
         }
 
         /// <summary>
@@ -106,6 +94,9 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="remixImagineId">
         /// ID of a previously generated skybox.
         /// </param>
+        /// <param name="hqDepth">
+        /// Request for high quality depth map. It will be returned in the depth_map_url parameter. (default: false)
+        /// </param>
         public SkyboxRequest(
             string prompt,
             string controlImagePath,
@@ -114,7 +105,8 @@ namespace BlockadeLabs.Skyboxes
             bool? enhancePrompt = null,
             int? seed = null,
             int? skyboxStyleId = null,
-            int? remixImagineId = null)
+            int? remixImagineId = null,
+            bool? hqDepth = null)
             : this(
                 prompt,
                 File.OpenRead(controlImagePath),
@@ -124,30 +116,8 @@ namespace BlockadeLabs.Skyboxes
                 enhancePrompt,
                 seed,
                 skyboxStyleId,
-                remixImagineId)
-        {
-        }
-
-        [Obsolete]
-        public SkyboxRequest(
-            string prompt,
-            string controlImagePath,
-            string controlModel,
-            string negativeText,
-            int? seed,
-            int? skyboxStyleId,
-            int? remixImagineId,
-            bool depth)
-            : this(
-                prompt,
-                File.OpenRead(controlImagePath),
-                Path.GetFileName(controlImagePath),
-                controlModel,
-                negativeText,
-                seed,
-                skyboxStyleId,
                 remixImagineId,
-                depth)
+                hqDepth)
         {
         }
 
@@ -189,6 +159,9 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="remixImagineId">
         /// ID of a previously generated skybox.
         /// </param>
+        /// <param name="hqDepth">
+        /// Request for high quality depth map. It will be returned in the depth_map_url parameter. (default: false)
+        /// </param>
         public SkyboxRequest(
             string prompt,
             Texture2D controlImage,
@@ -197,7 +170,8 @@ namespace BlockadeLabs.Skyboxes
             bool? enhancePrompt = null,
             int? seed = null,
             int? skyboxStyleId = null,
-            int? remixImagineId = null)
+            int? remixImagineId = null,
+            bool? hqDepth = null)
             : this(
                 prompt,
                 new MemoryStream(controlImage.EncodeToPNG()),
@@ -207,34 +181,8 @@ namespace BlockadeLabs.Skyboxes
                 enhancePrompt,
                 seed,
                 skyboxStyleId,
-                remixImagineId)
-        {
-            if (controlImage.height != 512 || controlImage.width != 1024)
-            {
-                throw new ArgumentException($"{nameof(ControlImage)} dimensions should be 512x1024");
-            }
-        }
-
-        [Obsolete]
-        public SkyboxRequest(
-            string prompt,
-            Texture2D controlImage,
-            string controlModel,
-            string negativeText,
-            int? seed,
-            int? skyboxStyleId,
-            int? remixImagineId,
-            bool depth)
-            : this(
-                prompt,
-                new MemoryStream(controlImage.EncodeToPNG()),
-                !string.IsNullOrWhiteSpace(controlImage.name) ? $"{controlImage.name}.png" : null,
-                controlModel,
-                negativeText,
-                seed,
-                skyboxStyleId,
                 remixImagineId,
-                depth)
+                hqDepth)
         {
             if (controlImage.height != 512 || controlImage.width != 1024)
             {
@@ -281,6 +229,9 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="remixImagineId">
         /// ID of a previously generated skybox.
         /// </param>
+        /// <param name="hqDepth">
+        /// Request for high quality depth map. It will be returned in the depth_map_url parameter. (default: false)
+        /// </param>
         public SkyboxRequest(
             string prompt,
             Stream controlImage,
@@ -290,33 +241,9 @@ namespace BlockadeLabs.Skyboxes
             bool? enhancePrompt = null,
             int? seed = null,
             int? skyboxStyleId = null,
-            int? remixImagineId = null)
-            : this(prompt, negativeText, enhancePrompt, seed, skyboxStyleId, remixImagineId)
-        {
-            ControlImage = controlImage;
-
-            if (string.IsNullOrWhiteSpace(controlImageFileName))
-            {
-                const string defaultImageName = "control_image.png";
-                controlImageFileName = defaultImageName;
-            }
-
-            ControlImageFileName = controlImageFileName;
-            ControlModel = controlModel;
-        }
-
-        [Obsolete]
-        public SkyboxRequest(
-            string prompt,
-            Stream controlImage,
-            string controlImageFileName,
-            string controlModel,
-            string negativeText,
-            int? seed,
-            int? skyboxStyleId,
-            int? remixImagineId,
-            bool depth)
-            : this(prompt, negativeText, seed, skyboxStyleId, remixImagineId, depth)
+            int? remixImagineId = null,
+            bool? hqDepth = null)
+            : this(prompt, negativeText, enhancePrompt, seed, skyboxStyleId, remixImagineId, hqDepth)
         {
             ControlImage = controlImage;
 
@@ -371,10 +298,9 @@ namespace BlockadeLabs.Skyboxes
         public int? RemixImagineId { get; }
 
         /// <summary>
-        /// Return depth map image.
+        /// Request for high quality depth map. It will be returned in the depth_map_url parameter. (default: false)
         /// </summary>
-        [Obsolete]
-        public bool Depth { get; }
+        public bool? HqDepth { get; }
 
         /// <summary>
         /// Control image used to influence the generation.
