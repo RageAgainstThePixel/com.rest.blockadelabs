@@ -28,13 +28,28 @@ namespace BlockadeLabs.Editor
         private const float WideColumnWidth = 128f;
         private const float SettingsLabelWidth = 1.56f;
 
-        private static readonly GUIContent guiTitleContent = new GUIContent("BlockadeLabs Dashboard");
+        private static readonly GUIContent guiTitleContent = new GUIContent($"{nameof(BlockadeLabs)} Dashboard");
         private static readonly GUIContent saveDirectoryContent = new GUIContent("Save Directory");
         private static readonly GUIContent downloadContent = new GUIContent("Download");
         private static readonly GUIContent deleteContent = new GUIContent("Delete");
         private static readonly GUIContent refreshContent = new GUIContent("Refresh");
 
         private static readonly string[] tabTitles = { "Skybox Generation", "History" };
+
+        private static readonly GUILayoutOption[] defaultColumnWidthOption =
+        {
+            GUILayout.Width(DefaultColumnWidth)
+        };
+
+        private static readonly GUILayoutOption[] wideColumnWidthOption =
+        {
+            GUILayout.Width(WideColumnWidth)
+        };
+
+        private static readonly GUILayoutOption[] expandWidthOption =
+        {
+            GUILayout.ExpandWidth(true)
+        };
 
         private static GUIStyle boldCenteredHeaderStyle;
 
@@ -61,24 +76,9 @@ namespace BlockadeLabs.Editor
             }
         }
 
-        private static string DefaultSaveDirectoryKey => $"{Application.productName}_BlockadeLabs_EditorDownloadDirectory";
+        private static string DefaultSaveDirectoryKey => $"{Application.productName}_{nameof(BlockadeLabs)}_EditorDownloadDirectory";
 
         private static string DefaultSaveDirectory => Application.dataPath;
-
-        private static readonly GUILayoutOption[] defaultColumnWidthOption =
-        {
-            GUILayout.Width(DefaultColumnWidth)
-        };
-
-        private static readonly GUILayoutOption[] wideColumnWidthOption =
-        {
-            GUILayout.Width(WideColumnWidth)
-        };
-
-        private static readonly GUILayoutOption[] expandWidthOption =
-        {
-            GUILayout.ExpandWidth(true)
-        };
 
         #region static content
 
@@ -118,6 +118,9 @@ namespace BlockadeLabs.Editor
         #endregion static content
 
         [SerializeField]
+        private BlockadeLabsConfiguration configuration;
+
+        [SerializeField]
         private int tab;
 
         [SerializeField]
@@ -125,6 +128,10 @@ namespace BlockadeLabs.Editor
 
         [SerializeField]
         private int currentSkyboxExportId = 1;
+
+        private BlockadeLabsAuthentication auth;
+
+        private BlockadeLabsSettings settings;
 
         private Vector2 scrollPosition = Vector2.zero;
 
@@ -138,7 +145,7 @@ namespace BlockadeLabs.Editor
 
         private Texture2D controlImage;
 
-        [MenuItem("Window/Dashboards/Bloackade Labs", false, priority: 999)]
+        [MenuItem("Window/Dashboards/" + nameof(BlockadeLabs), false, priority: 999)]
         private static void OpenWindow()
         {
             // Dock it next to the Scene View.
@@ -155,7 +162,19 @@ namespace BlockadeLabs.Editor
 
         private void OnFocus()
         {
-            api ??= new BlockadeLabsClient();
+            if (configuration == null)
+            {
+                configuration = Resources.Load<BlockadeLabsConfiguration>($"{nameof(BlockadeLabsConfiguration)}.asset");
+            }
+
+            auth ??= configuration == null
+                ? new BlockadeLabsAuthentication().LoadDefaultsReversed()
+                : new BlockadeLabsAuthentication(configuration);
+            settings ??= configuration == null
+                ? new BlockadeLabsSettings()
+                : new BlockadeLabsSettings(configuration);
+
+            api ??= new BlockadeLabsClient(auth, settings);
 
             if (!hasFetchedSkyboxStyles)
             {
@@ -184,12 +203,15 @@ namespace BlockadeLabs.Editor
             EditorGUILayout.BeginVertical();
             { // Begin Header
                 EditorGUILayout.Space();
-                EditorGUILayout.LabelField("BlockadeLabs Dashboard", BoldCenteredHeaderStyle);
+                EditorGUILayout.LabelField(guiTitleContent, BoldCenteredHeaderStyle);
                 EditorGUILayout.Space();
 
                 if (api is not { HasValidAuthentication: true })
                 {
                     EditorGUILayout.HelpBox($"No valid {nameof(BlockadeLabsConfiguration)} was found. This tool requires that you set your API key.", MessageType.Error);
+                    EditorGUILayout.EndVertical();
+                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.EndHorizontal();
                     return;
                 }
 

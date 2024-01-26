@@ -3,7 +3,7 @@
   "displayName": "BlockadeLabs",
   "description": "A Non-Official Blockade Labs Rest Client for Unity (UPM)",
   "keywords": [],
-  "version": "1.3.1",
+  "version": "1.3.2",
   "unity": "2021.3",
   "documentationUrl": "https://github.com/RageAgainstThePixel/com.rest.blockadelabs#documentation",
   "changelogUrl": "https://github.com/RageAgainstThePixel/com.rest.blockadelabs/releases",
@@ -19,7 +19,7 @@
   "dependencies": {
     "com.unity.modules.video": "1.0.0",
     "com.unity.sharp-zip-lib": "1.3.4-preview",
-    "com.utilities.rest": "2.4.0"
+    "com.utilities.rest": "2.5.0"
   },
   "samples": [
     {
