@@ -20,7 +20,7 @@ namespace BlockadeLabs.Tests
 
             try
             {
-                var skyboxStyles = await BlockadeLabsClient.SkyboxEndpoint.GetSkyboxStylesAsync(SkyboxModel.Model3);
+                var skyboxStyles = await BlockadeLabsClient.SkyboxEndpoint.GetSkyboxStylesAsync(SkyboxModel.Model2);
                 Assert.IsNotNull(skyboxStyles);
 
                 foreach (var skyboxStyle in skyboxStyles)
@@ -160,8 +160,24 @@ namespace BlockadeLabs.Tests
         public async Task Test_06_CancelAllPendingGenerations()
         {
             Assert.IsNotNull(BlockadeLabsClient.SkyboxEndpoint);
-            var result = await BlockadeLabsClient.SkyboxEndpoint.CancelAllPendingSkyboxGenerationsAsync();
-            Debug.Log(result ? "All pending generations successfully cancelled" : "No pending generations");
+            var skyboxStyles = await BlockadeLabsClient.SkyboxEndpoint.GetSkyboxStylesAsync(SkyboxModel.Model3);
+            var request = new SkyboxRequest(skyboxStyles.First(), "mars", enhancePrompt: true);
+
+            var progress = new Progress<SkyboxInfo>(async progress =>
+            {
+                Debug.Log(progress.ToString());
+                var result = await BlockadeLabsClient.SkyboxEndpoint.CancelAllPendingSkyboxGenerationsAsync();
+                Debug.Log(result ? "All pending generations successfully cancelled" : "No pending generations");
+            });
+
+            try
+            {
+                await BlockadeLabsClient.SkyboxEndpoint.GenerateSkyboxAsync(request, progressCallback: progress, pollingInterval: 500);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.Log("Operation successfully cancelled");
+            }
         }
 
         [Test]
