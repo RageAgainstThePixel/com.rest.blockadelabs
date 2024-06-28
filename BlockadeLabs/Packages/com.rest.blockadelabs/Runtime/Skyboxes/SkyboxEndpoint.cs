@@ -215,7 +215,7 @@ namespace BlockadeLabs.Skyboxes
                 throw new Exception($"Failed to generate skybox! {skyboxInfo.Id} -> {skyboxInfo.Status}\nError: {skyboxInfo.ErrorMessage}\n{skyboxInfo}");
             }
 
-            skyboxInfo.SetResponseData(client);
+            skyboxInfo.SetResponseData(response, client);
             var exportTasks = new List<Task>();
 
             try
@@ -239,7 +239,7 @@ namespace BlockadeLabs.Skyboxes
 
             skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
             await skyboxInfo.LoadAssetsAsync(EnableDebug, cancellationToken);
-            skyboxInfo.SetResponseData(client);
+            skyboxInfo.SetResponseData(response, client);
             return skyboxInfo;
         }
 
@@ -254,7 +254,7 @@ namespace BlockadeLabs.Skyboxes
             var response = await Rest.GetAsync(GetUrl($"imagine/requests/{id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate(EnableDebug);
             var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfoRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions).SkyboxInfo;
-            skyboxInfo.SetResponseData(client);
+            skyboxInfo.SetResponseData(response, client);
             return skyboxInfo;
         }
 
@@ -346,7 +346,7 @@ namespace BlockadeLabs.Skyboxes
             var response = await Rest.GetAsync(GetUrl("imagine/myRequests", @params), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate(EnableDebug);
             var skyboxHistory = JsonConvert.DeserializeObject<SkyboxHistory>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
-            skyboxHistory.SetResponseData(client);
+            skyboxHistory.SetResponseData(response, client);
             return skyboxHistory;
         }
 
@@ -450,7 +450,7 @@ namespace BlockadeLabs.Skyboxes
 
             skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            skyboxInfo.SetResponseData(client);
+            skyboxInfo.SetResponseData(response, client);
             return skyboxInfo;
         }
 
@@ -465,7 +465,7 @@ namespace BlockadeLabs.Skyboxes
             var response = await Rest.GetAsync(GetUrl($"skybox/export/{exportRequest.Id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate(EnableDebug);
             exportRequest = JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
-            exportRequest.SetResponseData(client);
+            exportRequest.SetResponseData(response, client);
             return exportRequest;
         }
 

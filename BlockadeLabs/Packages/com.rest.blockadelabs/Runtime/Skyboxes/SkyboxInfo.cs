@@ -27,24 +27,35 @@ namespace BlockadeLabs.Skyboxes
             [JsonProperty("obfuscated_id")] string obfuscatedId,
             [JsonProperty("skybox_style_id")] int skyboxStyleId,
             [JsonProperty("skybox_style_name")] string skyboxStyleName,
+            [JsonProperty("model")] SkyboxModel model,
             [JsonProperty("status")] Status status,
-            [JsonProperty("queue_position")] int queuePosition,
             [JsonProperty("type")] string type,
+            [JsonProperty("queue_position")] int queuePosition,
             [JsonProperty("file_url")] string mainTextureUrl,
             [JsonProperty("thumb_url")] string thumbUrl,
             [JsonProperty("depth_map_url")] string depthTextureUrl,
             [JsonProperty("title")] string title,
+            [JsonProperty("prompt")] string prompt,
+            [JsonProperty("negative_text")] string negativeText,
+            [JsonProperty("seed")] int seed,
+            [JsonProperty("remix_imagine_id")] int? remixId,
+            [JsonProperty("remix_obfuscated_id")] string remixObfuscatedId,
+            [JsonProperty("isMyFavorite")] bool isMyFavorite,
             [JsonProperty("created_at")] DateTime createdAt,
             [JsonProperty("updated_at")] DateTime updatedAt,
             [JsonProperty("dispatched_at")] DateTime dispatchedAt,
             [JsonProperty("processing_at")] DateTime processingAt,
             [JsonProperty("completed_at")] DateTime completedAt,
             [JsonProperty("error_message")] string errorMessage = null,
+            [JsonProperty("pusher_channel")] string pusherChannel = null,
+            [JsonProperty("pusher_event")] string pusherEvent = null,
             [JsonProperty("exports")] Dictionary<string, string> exports = null)
         {
             Id = id;
+            ObfuscatedId = obfuscatedId;
             SkyboxStyleId = skyboxStyleId;
             SkyboxStyleName = skyboxStyleName;
+            Model = model;
             Status = status;
             QueuePosition = queuePosition;
             Type = type;
@@ -52,13 +63,20 @@ namespace BlockadeLabs.Skyboxes
             ThumbUrl = thumbUrl;
             DepthTextureUrl = depthTextureUrl;
             Title = title;
-            ObfuscatedId = obfuscatedId;
+            Prompt = prompt;
+            NegativeText = negativeText;
+            Seed = seed;
+            RemixId = remixId;
+            RemixObfuscatedId = remixObfuscatedId;
+            IsMyFavorite = isMyFavorite;
             CreatedAt = createdAt;
             UpdatedAt = updatedAt;
             DispatchedAt = dispatchedAt;
             ProcessingAt = processingAt;
             CompletedAt = completedAt;
             ErrorMessage = errorMessage;
+            PusherChannel = pusherChannel;
+            PusherEvent = pusherEvent;
             exports ??= new Dictionary<string, string>();
             exports.TryAdd(SkyboxExportOption.Equirectangular_PNG, mainTextureUrl);
             exports.TryAdd(SkyboxExportOption.DepthMap_PNG, depthTextureUrl);
@@ -80,6 +98,11 @@ namespace BlockadeLabs.Skyboxes
         [Preserve]
         [JsonProperty("skybox_style_name")]
         public string SkyboxStyleName { get; }
+
+        [Preserve]
+        [JsonProperty("model")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public SkyboxModel Model { get; }
 
         [Preserve]
         [JsonProperty("status")]
@@ -124,6 +147,30 @@ namespace BlockadeLabs.Skyboxes
         public string Title { get; }
 
         [Preserve]
+        [JsonProperty("prompt")]
+        public string Prompt { get; }
+
+        [Preserve]
+        [JsonProperty("negative_text")]
+        public string NegativeText { get; }
+
+        [Preserve]
+        [JsonProperty("seed")]
+        public int Seed { get; }
+
+        [Preserve]
+        [JsonProperty("remix_imagine_id")]
+        public int? RemixId { get; }
+
+        [Preserve]
+        [JsonProperty("remix_obfuscated_id")]
+        public string RemixObfuscatedId { get; }
+
+        [Preserve]
+        [JsonProperty("isMyFavorite")]
+        public bool IsMyFavorite { get; private set; }
+
+        [Preserve]
         [JsonProperty("created_at")]
         public DateTime CreatedAt { get; }
 
@@ -146,6 +193,14 @@ namespace BlockadeLabs.Skyboxes
         [Preserve]
         [JsonProperty("error_message")]
         public string ErrorMessage { get; }
+
+        [Preserve]
+        [JsonProperty("pusher_channel")]
+        public string PusherChannel { get; private set; }
+
+        [Preserve]
+        [JsonProperty("pusher_event")]
+        public string PusherEvent { get; private set; }
 
         [Preserve]
         [JsonProperty("exports")]

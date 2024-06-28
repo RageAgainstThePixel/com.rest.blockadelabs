@@ -130,7 +130,7 @@ namespace BlockadeLabs.Tests
 
             foreach (var skybox in history.Skyboxes)
             {
-                Debug.Log($"{skybox.Id} {skybox.Title} status: {skybox.Status}");
+                Debug.Log($"[{skybox.ObfuscatedId}] {skybox.Title} status: {skybox.Status} @ {skybox.CompletedAt}");
             }
         }
 

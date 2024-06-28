@@ -46,13 +46,13 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="prompt">
         /// Text prompt describing the skybox world you wish to create.
         /// Maximum number of characters: 550.
-        /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
+        /// If you are using <see cref="SkyboxStyle"/> then the maximum number of characters is defined
         /// in the max-char response parameter defined for each style.
         /// </param>
         /// <param name="negativeText">
         /// Describe things to avoid in the skybox world you wish to create.
         /// Maximum number of characters: 200.
-        /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
+        /// If you are using <see cref="SkyboxStyle"/> then the maximum number of characters is defined
         /// in the negative-text-max-char response parameter defined for each style.
         /// </param>
         /// <param name="enhancePrompt">
@@ -96,7 +96,7 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="prompt">
         /// Text prompt describing the skybox world you wish to create.
         /// Maximum number of characters: 550.
-        /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
+        /// If you are using <see cref="SkyboxStyle"/> then the maximum number of characters is defined
         /// in the max-char response parameter defined for each style.
         /// </param>
         /// <param name="controlImagePath">
@@ -105,7 +105,7 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="negativeText">
         /// Describe things to avoid in the skybox world you wish to create.
         /// Maximum number of characters: 200.
-        /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
+        /// If you are using <see cref="SkyboxStyle"/> then the maximum number of characters is defined
         /// in the negative-text-max-char response parameter defined for each style.
         /// </param>
         /// <param name="enhancePrompt">
@@ -153,7 +153,7 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="prompt">
         /// Text prompt describing the skybox world you wish to create.
         /// Maximum number of characters: 550.
-        /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
+        /// If you are using <see cref="SkyboxStyle"/> then the maximum number of characters is defined
         /// in the max-char response parameter defined for each style.
         /// </param>
         /// <param name="controlImage">
@@ -164,7 +164,7 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="negativeText">
         /// Describe things to avoid in the skybox world you wish to create.
         /// Maximum number of characters: 200.
-        /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
+        /// If you are using <see cref="SkyboxStyle"/> then the maximum number of characters is defined
         /// in the negative-text-max-char response parameter defined for each style.
         /// </param>
         /// <param name="enhancePrompt">
@@ -212,7 +212,7 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="prompt">
         /// Text prompt describing the skybox world you wish to create.
         /// Maximum number of characters: 550.
-        /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
+        /// If you are using <see cref="SkyboxStyle"/> then the maximum number of characters is defined
         /// in the max-char response parameter defined for each style.
         /// </param>
         /// <param name="controlImage">
@@ -224,7 +224,7 @@ namespace BlockadeLabs.Skyboxes
         /// <param name="negativeText">
         /// Describe things to avoid in the skybox world you wish to create.
         /// Maximum number of characters: 200.
-        /// If you are using <see cref="SkyboxStyleId"/> then the maximum number of characters is defined
+        /// If you are using <see cref="SkyboxStyle"/> then the maximum number of characters is defined
         /// in the negative-text-max-char response parameter defined for each style.
         /// </param>
         /// <param name="enhancePrompt">
