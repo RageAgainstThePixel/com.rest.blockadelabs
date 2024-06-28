@@ -28,11 +28,11 @@ namespace BlockadeLabs.Editor
         private const float WideColumnWidth = 128f;
         private const float SettingsLabelWidth = 1.56f;
 
-        private static readonly GUIContent guiTitleContent = new GUIContent($"{nameof(BlockadeLabs)} Dashboard");
-        private static readonly GUIContent saveDirectoryContent = new GUIContent("Save Directory");
-        private static readonly GUIContent downloadContent = new GUIContent("Download");
-        private static readonly GUIContent deleteContent = new GUIContent("Delete");
-        private static readonly GUIContent refreshContent = new GUIContent("Refresh");
+        private static readonly GUIContent guiTitleContent = new($"{nameof(BlockadeLabs)} Dashboard");
+        private static readonly GUIContent saveDirectoryContent = new("Save Directory");
+        private static readonly GUIContent downloadContent = new("Download");
+        private static readonly GUIContent deleteContent = new("Delete");
+        private static readonly GUIContent refreshContent = new("Refresh");
 
         private static readonly string[] tabTitles = { "Skybox Generation", "History" };
 
@@ -63,11 +63,11 @@ namespace BlockadeLabs.Editor
 
                     if (editorStyle != null)
                     {
-                        boldCenteredHeaderStyle = new GUIStyle(editorStyle)
+                        boldCenteredHeaderStyle = new(editorStyle)
                         {
                             alignment = TextAnchor.MiddleCenter,
                             fontSize = 18,
-                            padding = new RectOffset(0, 0, -8, -8)
+                            padding = new(0, 0, -8, -8)
                         };
                     }
                 }
@@ -87,6 +87,8 @@ namespace BlockadeLabs.Editor
         private static string editorDownloadDirectory = string.Empty;
 
         private static bool isGeneratingSkybox;
+
+        private static SkyboxModel model = SkyboxModel.Model3;
 
         private static IReadOnlyList<SkyboxStyle> skyboxStyles = new List<SkyboxStyle>();
 
@@ -157,7 +159,7 @@ namespace BlockadeLabs.Editor
         private void OnEnable()
         {
             titleContent = guiTitleContent;
-            minSize = new Vector2(WideColumnWidth * 4.375F, WideColumnWidth * 4);
+            minSize = new(WideColumnWidth * 4.375F, WideColumnWidth * 4);
         }
 
         private void OnFocus()
@@ -169,12 +171,12 @@ namespace BlockadeLabs.Editor
 
             auth ??= configuration == null
                 ? new BlockadeLabsAuthentication().LoadDefaultsReversed()
-                : new BlockadeLabsAuthentication(configuration);
+                : new(configuration);
             settings ??= configuration == null
-                ? new BlockadeLabsSettings()
+                ? new()
                 : new BlockadeLabsSettings(configuration);
 
-            api ??= new BlockadeLabsClient(auth, settings);
+            api ??= new(auth, settings);
 
             if (!hasFetchedSkyboxStyles)
             {
@@ -292,7 +294,16 @@ namespace BlockadeLabs.Editor
             EditorGUILayout.Space();
             enhancePrompt = EditorGUILayout.Toggle("Enhance Prompt", enhancePrompt);
             seed = EditorGUILayout.IntField("Seed", seed);
-            controlImage = EditorGUILayout.ObjectField(new GUIContent("Control Image"), controlImage, typeof(Texture2D), false) as Texture2D;
+            controlImage = EditorGUILayout.ObjectField(new GUIContent("Remix Image"), controlImage, typeof(Texture2D), false) as Texture2D;
+            { // model popup
+                EditorGUI.BeginChangeCheck();
+                model = (SkyboxModel)EditorGUILayout.EnumPopup(new GUIContent("Model"), model);
+
+                if (EditorGUI.EndChangeCheck())
+                {
+                    FetchSkyboxStyles();
+                }
+            }
             { // skybox style dropdown
                 var skyboxIndex = -1;
                 currentSkyboxStyleSelection ??= skyboxStyles?.FirstOrDefault(skyboxStyle => skyboxStyle.Id == currentSkyboxStyleId);
@@ -301,7 +312,7 @@ namespace BlockadeLabs.Editor
                 {
                     for (var i = 0; i < skyboxOptions.Length; i++)
                     {
-                        if (skyboxOptions[i].text.Contains(currentSkyboxStyleSelection.Name))
+                        if (skyboxOptions[i].text.Contains(currentSkyboxStyleSelection.Name.Replace("/", " ")))
                         {
                             skyboxIndex = i;
                             break;
@@ -310,11 +321,38 @@ namespace BlockadeLabs.Editor
                 }
 
                 EditorGUI.BeginChangeCheck();
-                skyboxIndex = EditorGUILayout.Popup(new GUIContent("Style"), skyboxIndex, skyboxOptions);
+                skyboxIndex = EditorGUILayout.Popup(new("Style"), skyboxIndex, skyboxOptions);
 
-                if (EditorGUI.EndChangeCheck())
+                if (EditorGUI.EndChangeCheck() && skyboxStyles is { Count: > 0 })
                 {
-                    currentSkyboxStyleSelection = skyboxStyles?.FirstOrDefault(skyboxStyle => skyboxOptions[skyboxIndex].text.Contains(skyboxStyle.Name));
+                    SkyboxStyle selection = null;
+
+                    foreach (var skyboxStyle in skyboxStyles)
+                    {
+                        if (!skyboxOptions[skyboxIndex].text.Contains(skyboxStyle.Name.Replace("/", " ")))
+                        {
+                            continue;
+                        }
+
+                        if (skyboxStyle.FamilyStyles != null)
+                        {
+                            foreach (var familyStyle in skyboxStyle.FamilyStyles)
+                            {
+                                if (skyboxOptions[skyboxIndex].text.Contains(familyStyle.Name.Replace("/", " ")))
+                                {
+                                    selection = familyStyle;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            selection = skyboxStyle;
+                            break;
+                        }
+                    }
+
+                    currentSkyboxStyleSelection = selection;
                     currentSkyboxStyleId = currentSkyboxStyleSelection!.Id;
                 }
             }
@@ -335,7 +373,7 @@ namespace BlockadeLabs.Editor
                 }
 
                 EditorGUI.BeginChangeCheck();
-                exportIndex = EditorGUILayout.Popup(new GUIContent("Export"), exportIndex, exportOptions);
+                exportIndex = EditorGUILayout.Popup(new("Export"), exportIndex, exportOptions);
 
                 if (EditorGUI.EndChangeCheck())
                 {
@@ -365,8 +403,29 @@ namespace BlockadeLabs.Editor
 
             try
             {
-                skyboxStyles = await api.SkyboxEndpoint.GetSkyboxStylesAsync();
-                skyboxOptions = skyboxStyles.Select(skyboxStyle => new GUIContent(skyboxStyle.Name)).ToArray();
+                var skyboxFamilies = await api.SkyboxEndpoint.GetSkyboxStyleFamiliesAsync(model);
+                var tempOptions = new List<GUIContent>();
+                var tempStyles = new List<SkyboxStyle>();
+
+                foreach (var skyboxStyle in skyboxFamilies)
+                {
+                    if (skyboxStyle.FamilyStyles != null)
+                    {
+                        tempOptions.AddRange(skyboxStyle.FamilyStyles.Where(style => style.Model == model).Select(style =>
+                        {
+                            tempStyles.Add(skyboxStyle);
+                            return new GUIContent($"{skyboxStyle.Name.Replace("/", " ")}/{style.Name.Replace("/", " ")}");
+                        }));
+                    }
+                    else if (skyboxStyle.Model == model)
+                    {
+                        tempStyles.Add(skyboxStyle);
+                        tempOptions.Add(new GUIContent(skyboxStyle.Name.Replace("/", " ")));
+                    }
+                }
+
+                skyboxStyles = tempStyles;
+                skyboxOptions = tempOptions.ToArray();
             }
             catch (Exception e)
             {
@@ -410,28 +469,28 @@ namespace BlockadeLabs.Editor
                 {
                     if (!textureImporter.isReadable)
                     {
-                        throw new Exception($"Enable Read/Write in Texture asset import settings for {controlImage.name}");
+                        throw new($"Enable Read/Write in Texture asset import settings for {controlImage.name}");
                     }
 
                     if (textureImporter.textureCompression != TextureImporterCompression.Uncompressed)
                     {
-                        throw new Exception($"Disable compression in Texture asset import settings for {controlImage.name}");
+                        throw new($"Disable compression in Texture asset import settings for {controlImage.name}");
                     }
                 }
 
                 using var skyboxRequest = controlImage == null
-                    ? new SkyboxRequest(
+                    ? new(
+                        style: currentSkyboxStyleSelection,
                         prompt: promptText,
                         negativeText: negativeText,
                         enhancePrompt: enhancePrompt,
-                        skyboxStyleId: currentSkyboxStyleSelection?.Id,
                         seed: seed)
                     : new SkyboxRequest(
+                        style: currentSkyboxStyleSelection,
                         prompt: promptText,
                         negativeText: negativeText,
                         enhancePrompt: enhancePrompt,
                         controlImage: controlImage,
-                        skyboxStyleId: currentSkyboxStyleSelection?.Id,
                         seed: seed);
                 promptText = string.Empty;
                 negativeText = string.Empty;
@@ -456,7 +515,7 @@ namespace BlockadeLabs.Editor
             }
         }
 
-        private static readonly ConcurrentDictionary<string, SkyboxInfo> loadingSkyboxes = new ConcurrentDictionary<string, SkyboxInfo>();
+        private static readonly ConcurrentDictionary<string, SkyboxInfo> loadingSkyboxes = new();
 
         private static async void SaveAllSkyboxAssets(SkyboxInfo skyboxInfo)
         {
@@ -565,7 +624,11 @@ namespace BlockadeLabs.Editor
                             textures.Add(texture);
                         }
 
+#if UNITY_2022_1_OR_NEWER
                         var cubemap = new Cubemap(textures.First().width, TextureFormat.RGB24, false, true);
+#else
+                        var cubemap = new Cubemap(textures.First().width, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8_UInt, UnityEngine.Experimental.Rendering.TextureCreationFlags.None);
+#endif
 
                         try
                         {
@@ -917,7 +980,7 @@ namespace BlockadeLabs.Editor
 
             try
             {
-                history = await api.SkyboxEndpoint.GetSkyboxHistoryAsync(new SkyboxHistoryParameters { Limit = limit, Offset = page });
+                history = await api.SkyboxEndpoint.GetSkyboxHistoryAsync(new() { Limit = limit, Offset = page });
             }
             catch (Exception e)
             {

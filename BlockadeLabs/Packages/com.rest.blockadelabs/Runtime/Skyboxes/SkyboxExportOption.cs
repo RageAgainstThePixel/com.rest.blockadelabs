@@ -1,15 +1,12 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Newtonsoft.Json;
-using System;
-using UnityEngine;
 using UnityEngine.Scripting;
 
 namespace BlockadeLabs.Skyboxes
 {
     [Preserve]
-    [Serializable]
-    public sealed class SkyboxExportOption
+    public sealed class SkyboxExportOption : BaseResponse
     {
         public const string Equirectangular_JPG = "equirectangular-jpg";
         public const string Equirectangular_PNG = "equirectangular-png";
@@ -24,38 +21,32 @@ namespace BlockadeLabs.Skyboxes
 
         [Preserve]
         [JsonConstructor]
-        public SkyboxExportOption(
+        internal SkyboxExportOption(
             [JsonProperty("id")] int id,
             [JsonProperty("name")] string name,
-            [JsonProperty("key")] string key)
+            [JsonProperty("key")] string key,
+            [JsonProperty("isPremium")] bool isPremium)
         {
-            this.name = name;
-            this.id = id;
-            this.key = key;
+            Name = name;
+            Id = id;
+            Key = key;
+            IsPremium = isPremium;
         }
 
         [Preserve]
-        [SerializeField]
-        private string name;
-
-        [Preserve]
         [JsonProperty("name")]
-        public string Name => name;
-
-        [Preserve]
-        [SerializeField]
-        private int id;
+        public string Name { get; }
 
         [Preserve]
         [JsonProperty("id")]
-        public int Id => id;
-
-        [Preserve]
-        [SerializeField]
-        private string key;
+        public int Id { get; }
 
         [Preserve]
         [JsonProperty("key")]
-        public string Key => key;
+        public string Key { get; }
+
+        [Preserve]
+        [JsonProperty("isPremium")]
+        public bool IsPremium { get; }
     }
 }

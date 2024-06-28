@@ -80,7 +80,7 @@ namespace BlockadeLabs.Samples.Skybox
             {
                 generateButton.interactable = false;
                 promptInputField.interactable = false;
-                var request = new SkyboxRequest(prompt, skyboxStyleId: skyboxOptions[skyboxStyleDropdown.value].Id);
+                var request = new SkyboxRequest(skyboxOptions[skyboxStyleDropdown.value], prompt);
                 var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, cancellationToken: lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
 
                 if (skyboxInfo.TryGetAsset<Texture2D>("equirectangular-png", out var texture))
@@ -115,7 +115,7 @@ namespace BlockadeLabs.Samples.Skybox
         {
             try
             {
-                skyboxOptions = await api.SkyboxEndpoint.GetSkyboxStylesAsync(lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
+                skyboxOptions = await api.SkyboxEndpoint.GetSkyboxStyleFamiliesAsync(null, lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
                 var dropdownOptions = new List<TMP_Dropdown.OptionData>(skyboxOptions.Count);
                 dropdownOptions.AddRange(skyboxOptions.Select(skyboxStyle => new TMP_Dropdown.OptionData(skyboxStyle.Name)));
                 skyboxStyleDropdown.options = dropdownOptions;

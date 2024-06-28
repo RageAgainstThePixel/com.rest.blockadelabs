@@ -11,6 +11,7 @@ namespace BlockadeLabs
     public sealed class BlockadeLabsAuthentication : AbstractAuthentication<BlockadeLabsAuthentication, BlockadeLabsAuthInfo, BlockadeLabsConfiguration>
     {
         internal const string CONFIG_FILE = ".blockadelabs";
+        private const string BLOCKADELABS_API_KEY = nameof(BLOCKADELABS_API_KEY);
         private const string BLOCKADE_LABS_API_KEY = nameof(BLOCKADE_LABS_API_KEY);
 
         public static implicit operator BlockadeLabsAuthentication(string apiKey) => new BlockadeLabsAuthentication(apiKey);
@@ -77,6 +78,12 @@ namespace BlockadeLabs
         public override BlockadeLabsAuthentication LoadFromEnvironment()
         {
             var apiKey = Environment.GetEnvironmentVariable(BLOCKADE_LABS_API_KEY);
+
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                apiKey = Environment.GetEnvironmentVariable(BLOCKADE_LABS_API_KEY);
+            }
+
             return string.IsNullOrEmpty(apiKey) ? null : new BlockadeLabsAuthentication(apiKey);
         }
 
@@ -126,11 +133,13 @@ namespace BlockadeLabs
                             var part = parts[i];
                             var nextPart = parts[i + 1];
 
-                            apiKey = part switch
+                            switch (part)
                             {
-                                BLOCKADE_LABS_API_KEY => nextPart.Trim(),
-                                _ => apiKey
-                            };
+                                case BLOCKADE_LABS_API_KEY:
+                                case BLOCKADELABS_API_KEY:
+                                    apiKey = nextPart.Trim();
+                                    break;
+                            }
                         }
                     }
 

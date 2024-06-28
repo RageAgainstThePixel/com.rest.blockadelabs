@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -48,7 +49,7 @@ namespace BlockadeLabs.Skyboxes
             public string Success { get; }
 
             [Preserve]
-            [JsonProperty("Error")]
+            [JsonProperty("error")]
             public string Error { get; }
         }
 
@@ -61,9 +62,59 @@ namespace BlockadeLabs.Skyboxes
         /// </summary>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
         /// <returns>A list of <see cref="SkyboxStyle"/>s.</returns>
+        [Obsolete("use overload with model parameter")]
         public async Task<IReadOnlyList<SkyboxStyle>> GetSkyboxStylesAsync(CancellationToken cancellationToken = default)
         {
             var response = await Rest.GetAsync(GetUrl("skybox/styles"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate(EnableDebug);
+            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
+        }
+
+        /// <summary>
+        /// Returns the list of predefined styles that can influence the overall aesthetic of your skybox generation.
+        /// </summary>
+        /// <param name="model">The <see cref="SkyboxModel"/> to get styles for.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>A list of <see cref="SkyboxStyle"/>s.</returns>
+        public async Task<IReadOnlyList<SkyboxStyle>> GetSkyboxStylesAsync(SkyboxModel model, CancellationToken cancellationToken = default)
+        {
+            var @params = new Dictionary<string, string> { { "model_version", ((int)model).ToString() } };
+            var response = await Rest.GetAsync(GetUrl("skybox/styles", @params), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate(EnableDebug);
+            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
+        }
+
+        /// <summary>
+        /// Returns the list of predefined styles that can influence the overall aesthetic of your skybox generation, sorted by style family.
+        /// This route can be used in order to build a menu of styles sorted by family.
+        /// </summary>
+        /// <param name="model">Optional, The <see cref="SkyboxModel"/> to get styles for.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>A list of <see cref="SkyboxStyle"/>s.</returns>
+        public async Task<IReadOnlyList<SkyboxStyle>> GetSkyboxStyleFamiliesAsync(SkyboxModel? model = null, CancellationToken cancellationToken = default)
+        {
+            Dictionary<string, string> @params = null;
+
+            if (model != null)
+            {
+                @params = new() { { "model_version", ((int)model).ToString() } };
+            }
+
+            var response = await Rest.GetAsync(GetUrl("skybox/families", @params), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            response.Validate(EnableDebug);
+            return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
+        }
+
+        /// <summary>
+        /// Returns the list of predefined styles for the generation menu.
+        /// </summary>
+        /// <param name="model">The <see cref="SkyboxModel"/> to get styles for.</param>
+        /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
+        /// <returns>A list of <see cref="SkyboxStyle"/>s.</returns>
+        internal async Task<IReadOnlyList<SkyboxStyle>> GetSkyboxStylesMenuAsync(SkyboxModel model, CancellationToken cancellationToken = default)
+        {
+            var @params = new Dictionary<string, string> { { "model_version", ((int)model).ToString() } };
+            var response = await Rest.GetAsync(GetUrl("skybox/menu", @params), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate(EnableDebug);
             return JsonConvert.DeserializeObject<IReadOnlyList<SkyboxStyle>>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
         }
@@ -164,24 +215,31 @@ namespace BlockadeLabs.Skyboxes
                 throw new Exception($"Failed to generate skybox! {skyboxInfo.Id} -> {skyboxInfo.Status}\nError: {skyboxInfo.ErrorMessage}\n{skyboxInfo}");
             }
 
+            skyboxInfo.SetResponseData(client);
             var exportTasks = new List<Task>();
 
-            if (exportOptions != null)
+            try
             {
-                foreach (var exportOption in exportOptions)
+                if (exportOptions != null)
                 {
-                    exportTasks.Add(ExportSkyboxAsync(skyboxInfo, exportOption, pollingInterval, cancellationToken));
+                    exportTasks.AddRange(exportOptions.Select(exportOption => ExportSkyboxAsync(skyboxInfo, exportOption, pollingInterval, cancellationToken)));
                 }
+                else
+                {
+                    exportTasks.Add(ExportSkyboxAsync(skyboxInfo, DefaultExportOptions.Equirectangular_PNG, pollingInterval, cancellationToken));
+                    exportTasks.Add(ExportSkyboxAsync(skyboxInfo, DefaultExportOptions.DepthMap_PNG, pollingInterval, cancellationToken));
+                }
+
+                await Task.WhenAll(exportTasks).ConfigureAwait(true);
             }
-            else
+            catch (Exception e)
             {
-                exportTasks.Add(ExportSkyboxAsync(skyboxInfo, DefaultExportOptions.Equirectangular_PNG, pollingInterval, cancellationToken));
-                exportTasks.Add(ExportSkyboxAsync(skyboxInfo, DefaultExportOptions.DepthMap_PNG, pollingInterval, cancellationToken));
+                Debug.LogError($"Failed to download skybox export!\n{e}");
             }
 
-            await Task.WhenAll(exportTasks).ConfigureAwait(true);
             skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
             await skyboxInfo.LoadAssetsAsync(EnableDebug, cancellationToken);
+            skyboxInfo.SetResponseData(client);
             return skyboxInfo;
         }
 
@@ -195,7 +253,9 @@ namespace BlockadeLabs.Skyboxes
         {
             var response = await Rest.GetAsync(GetUrl($"imagine/requests/{id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate(EnableDebug);
-            return JsonConvert.DeserializeObject<SkyboxInfoRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions).SkyboxInfo;
+            var skyboxInfo = JsonConvert.DeserializeObject<SkyboxInfoRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions).SkyboxInfo;
+            skyboxInfo.SetResponseData(client);
+            return skyboxInfo;
         }
 
         /// <summary>
@@ -214,7 +274,7 @@ namespace BlockadeLabs.Skyboxes
 
             if (skyboxOp is not { Success: successStatus })
             {
-                throw new Exception($"Failed to cancel generation for skybox {id}!\n{skyboxOp?.Error}");
+                throw new Exception($"Failed to delete skybox {id}!\n{skyboxOp?.Error}");
             }
 
             return skyboxOp.Success.Equals(successStatus);
@@ -249,7 +309,7 @@ namespace BlockadeLabs.Skyboxes
 
             if (historyRequest.Order.HasValue)
             {
-                @params.Add("order:", historyRequest.Order.ToString().ToUpper());
+                @params.Add("order", historyRequest.Order.ToString().ToUpper());
             }
 
             if (historyRequest.ImagineId.HasValue)
@@ -267,9 +327,27 @@ namespace BlockadeLabs.Skyboxes
                 @params.Add("generator", UnityWebRequest.EscapeURL(historyRequest.GeneratorFilter));
             }
 
-            var response = await Rest.GetAsync(GetUrl($"imagine/myRequests", @params), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
+            if (historyRequest.FavoritesOnly.HasValue &&
+                historyRequest.FavoritesOnly.Value)
+            {
+                @params.Add("my_likes", historyRequest.FavoritesOnly.Value.ToString().ToLower());
+            }
+
+            if (historyRequest.GeneratedBy.HasValue)
+            {
+                @params.Add("api_key_id", historyRequest.GeneratedBy.Value.ToString());
+            }
+
+            if (historyRequest.SkyboxStyleId is > 0)
+            {
+                @params.Add("skybox_style_id", historyRequest.SkyboxStyleId.ToString());
+            }
+
+            var response = await Rest.GetAsync(GetUrl("imagine/myRequests", @params), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate(EnableDebug);
-            return JsonConvert.DeserializeObject<SkyboxHistory>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
+            var skyboxHistory = JsonConvert.DeserializeObject<SkyboxHistory>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
+            skyboxHistory.SetResponseData(client);
+            return skyboxHistory;
         }
 
         /// <summary>
@@ -372,6 +450,7 @@ namespace BlockadeLabs.Skyboxes
 
             skyboxInfo = await GetSkyboxInfoAsync(skyboxInfo.Id, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
+            skyboxInfo.SetResponseData(client);
             return skyboxInfo;
         }
 
@@ -385,7 +464,9 @@ namespace BlockadeLabs.Skyboxes
         {
             var response = await Rest.GetAsync(GetUrl($"skybox/export/{exportRequest.Id}"), parameters: new RestParameters(client.DefaultRequestHeaders), cancellationToken);
             response.Validate(EnableDebug);
-            return JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
+            exportRequest = JsonConvert.DeserializeObject<SkyboxExportRequest>(response.Body, BlockadeLabsClient.JsonSerializationOptions);
+            exportRequest.SetResponseData(client);
+            return exportRequest;
         }
 
         /// <summary>
