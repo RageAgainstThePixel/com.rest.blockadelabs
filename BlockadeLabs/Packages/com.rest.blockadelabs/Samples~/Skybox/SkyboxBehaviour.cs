@@ -4,7 +4,6 @@ using BlockadeLabs.Skyboxes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -28,7 +27,10 @@ namespace BlockadeLabs.Samples.Skybox
 
         private BlockadeLabsClient api;
 
-        private CancellationTokenSource lifetimeCancellationTokenSource;
+#if !UNITY_2022_1_OR_NEWER
+        private System.Threading.CancellationTokenSource lifetimeCancellationTokenSource = new();
+        private System.Threading.CancellationToken destroyCancellationToken => lifetimeCancellationTokenSource.Token;
+#endif
 
         private IReadOnlyList<SkyboxStyle> skyboxOptions;
 
@@ -42,7 +44,6 @@ namespace BlockadeLabs.Samples.Skybox
         private void Awake()
         {
             OnValidate();
-            lifetimeCancellationTokenSource = new CancellationTokenSource();
 
             try
             {
@@ -60,6 +61,15 @@ namespace BlockadeLabs.Samples.Skybox
             promptInputField.onSubmit.AddListener(GenerateSkybox);
             promptInputField.onValueChanged.AddListener(ValidateInput);
         }
+
+#if !UNITY_2022_1_OR_NEWER
+        private void OnDestroy()
+        {
+            lifetimeCancellationTokenSource.Cancel();
+            lifetimeCancellationTokenSource.Dispose();
+            lifetimeCancellationTokenSource = null;
+        }
+#endif
 
         private void ValidateInput(string input)
         {
@@ -81,7 +91,7 @@ namespace BlockadeLabs.Samples.Skybox
                 generateButton.interactable = false;
                 promptInputField.interactable = false;
                 var request = new SkyboxRequest(skyboxOptions[skyboxStyleDropdown.value], prompt);
-                var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, cancellationToken: lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
+                var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, cancellationToken: destroyCancellationToken).ConfigureAwait(true);
 
                 if (skyboxInfo.TryGetAsset<Texture2D>("equirectangular-png", out var texture))
                 {
@@ -104,18 +114,12 @@ namespace BlockadeLabs.Samples.Skybox
             }
         }
 
-        private void OnDestroy()
-        {
-            lifetimeCancellationTokenSource.Cancel();
-            lifetimeCancellationTokenSource.Dispose();
-            lifetimeCancellationTokenSource = null;
-        }
 
         private async void GetSkyboxStyles()
         {
             try
             {
-                skyboxOptions = await api.SkyboxEndpoint.GetSkyboxStyleFamiliesAsync(null, lifetimeCancellationTokenSource.Token).ConfigureAwait(true);
+                skyboxOptions = await api.SkyboxEndpoint.GetSkyboxStyleFamiliesAsync(null, destroyCancellationToken).ConfigureAwait(true);
                 var dropdownOptions = new List<TMP_Dropdown.OptionData>(skyboxOptions.Count);
                 dropdownOptions.AddRange(skyboxOptions.Select(skyboxStyle => new TMP_Dropdown.OptionData(skyboxStyle.Name)));
                 skyboxStyleDropdown.options = dropdownOptions;
