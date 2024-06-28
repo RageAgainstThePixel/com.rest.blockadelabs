@@ -77,7 +77,7 @@ namespace BlockadeLabs
         /// <inheritdoc />
         public override BlockadeLabsAuthentication LoadFromEnvironment()
         {
-            var apiKey = Environment.GetEnvironmentVariable(BLOCKADE_LABS_API_KEY);
+            var apiKey = Environment.GetEnvironmentVariable(BLOCKADELABS_API_KEY);
 
             if (string.IsNullOrWhiteSpace(apiKey))
             {
