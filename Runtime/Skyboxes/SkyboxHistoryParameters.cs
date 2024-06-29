@@ -39,5 +39,20 @@ namespace BlockadeLabs.Skyboxes
         /// Filter by generator
         /// </summary>
         public string GeneratorFilter { get; set; }
+
+        /// <summary>
+        /// Filter by favorites only
+        /// </summary>
+        public bool? FavoritesOnly { get; set; } = null;
+
+        /// <summary>
+        /// Filter by API generation type. Options are 'all' or 'web-ui'
+        /// </summary>
+        public int? GeneratedBy { get; set; } = null;
+
+        /// <summary>
+        /// Filter by Skybox Style Id. Defaults to any.
+        /// </summary>
+        public int? SkyboxStyleId { get; set; } = null;
     }
 }

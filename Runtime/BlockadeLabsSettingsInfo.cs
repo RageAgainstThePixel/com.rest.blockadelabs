@@ -7,15 +7,24 @@ namespace BlockadeLabs
 {
     public sealed class BlockadeLabsSettingsInfo : ISettingsInfo
     {
+        internal const string Https = "https://";
         internal const string DefaultDomain = "backend.blockadelabs.com";
         internal const string DefaultVersion = "v1";
 
+        /// <summary>
+        /// Creates a new instance of <see cref="BlockadeLabsSettingsInfo"/> for use with BlockadeLabs.
+        /// </summary>
         public BlockadeLabsSettingsInfo()
         {
             Domain = DefaultDomain;
-            BaseRequestUrlFormat = $"https://{Domain}/api/{DefaultVersion}/{{0}}";
+            BaseRequest = $"/api/{DefaultVersion}/";
+            BaseRequestUrlFormat = $"{Https}{Domain}{BaseRequest}{{0}}";
         }
 
+        /// <summary>
+        /// Creates a new instance of <see cref="BlockadeLabsSettingsInfo"/> for use with BlockadeLabs.
+        /// </summary>
+        /// <param name="domain">Base api domain.</param>
         public BlockadeLabsSettingsInfo(string domain)
         {
             if (string.IsNullOrWhiteSpace(domain))
@@ -29,11 +38,14 @@ namespace BlockadeLabs
                 throw new ArgumentException($"Invalid parameter \"{nameof(domain)}\"");
             }
 
-            Domain = domain;
-            BaseRequestUrlFormat = $"https://{Domain}/api/{DefaultVersion}/{{0}}";
+            Domain = domain.Contains("http") ? domain : $"{Https}{domain}";
+            BaseRequest = $"/api/{DefaultVersion}/";
+            BaseRequestUrlFormat = $"{Domain}{BaseRequest}{{0}}";
         }
 
         public string Domain { get; }
+
+        public string BaseRequest { get; }
 
         public string BaseRequestUrlFormat { get; }
     }
