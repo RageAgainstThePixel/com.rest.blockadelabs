@@ -62,7 +62,8 @@ The recommended installation method is though the unity package manager and [Ope
 
 There are 4 ways to provide your API keys, in order of precedence:
 
-> [!WARNING] We recommended using the environment variables to load the API key instead of having it hard coded in your source. It is not recommended use this method in production, but only for accepting user credentials, local testing and quick start scenarios.
+> [!WARNING]
+> We recommended using the environment variables to load the API key instead of having it hard coded in your source. It is not recommended use this method in production, but only for accepting user credentials, local testing and quick start scenarios.
 
 1. [Pass keys directly with constructor](#pass-keys-directly-with-constructor) :warning:
 2. [Unity Scriptable Object](#unity-scriptable-object) :warning:
