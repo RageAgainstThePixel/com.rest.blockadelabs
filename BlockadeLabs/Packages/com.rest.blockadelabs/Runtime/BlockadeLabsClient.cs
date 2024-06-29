@@ -2,6 +2,7 @@
 
 using BlockadeLabs.Skyboxes;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using System.Collections.Generic;
 using System.Security.Authentication;
 using Utilities.WebRequestRest;
@@ -10,6 +11,14 @@ namespace BlockadeLabs
 {
     public sealed class BlockadeLabsClient : BaseClient<BlockadeLabsAuthentication, BlockadeLabsSettings>
     {
+        /// <inheritdoc />
+        public BlockadeLabsClient(BlockadeLabsConfiguration configuration)
+            : this(
+                configuration != null ? new BlockadeLabsAuthentication(configuration) : BlockadeLabsAuthentication.Default,
+                configuration != null ? new BlockadeLabsSettings(configuration) : BlockadeLabsSettings.Default)
+        {
+        }
+
         /// <summary>
         /// Creates a new client for the BlockadeLabs API, handling auth and allowing for access to various API endpoints.
         /// </summary>
@@ -37,6 +46,9 @@ namespace BlockadeLabs
             }
         }
 
+        /// <inheritdoc />
+        public override bool HasValidAuthentication => !string.IsNullOrWhiteSpace(Authentication?.Info?.ApiKey);
+
         protected override void SetupDefaultRequestHeaders()
         {
             DefaultRequestHeaders = new Dictionary<string, string>
@@ -48,11 +60,13 @@ namespace BlockadeLabs
             };
         }
 
-        public override bool HasValidAuthentication => !string.IsNullOrWhiteSpace(Authentication?.Info?.ApiKey);
-
-        internal static JsonSerializerSettings JsonSerializationOptions { get; } = new JsonSerializerSettings
+        internal static JsonSerializerSettings JsonSerializationOptions { get; } = new()
         {
-            DefaultValueHandling = DefaultValueHandling.Ignore
+            DefaultValueHandling = DefaultValueHandling.Ignore,
+            Converters = new List<JsonConverter>
+            {
+                new StringEnumConverter()
+            }
         };
 
         public SkyboxEndpoint SkyboxEndpoint { get; }

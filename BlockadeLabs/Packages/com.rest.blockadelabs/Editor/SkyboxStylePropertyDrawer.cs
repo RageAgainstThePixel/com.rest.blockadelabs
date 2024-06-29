@@ -108,7 +108,7 @@ namespace BlockadeLabs.Editor
 
             try
             {
-                styles = await BlockadeLabsClient.SkyboxEndpoint.GetSkyboxStylesAsync();
+                styles = await BlockadeLabsClient.SkyboxEndpoint.GetSkyboxStyleFamiliesAsync();
                 options = styles.OrderBy(style => style.Id).Select(style => new GUIContent(style.Name, style.Id.ToString())).ToArray();
             }
             catch (Exception e)

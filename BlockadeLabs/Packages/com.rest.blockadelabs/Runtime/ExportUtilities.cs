@@ -114,8 +114,11 @@ namespace BlockadeLabs
                 throw new ArgumentException("Must have 6 textures for each face of the cubemap");
             }
 
+#if UNITY_2022_1_OR_NEWER
             var cubemap = new Cubemap(textures.First().width, TextureFormat.RGB24, false, true);
-
+#else
+            var cubemap = new Cubemap(textures.First().width, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8_UInt, UnityEngine.Experimental.Rendering.TextureCreationFlags.None);
+#endif
             foreach (var face in textures)
             {
                 switch (face.name)

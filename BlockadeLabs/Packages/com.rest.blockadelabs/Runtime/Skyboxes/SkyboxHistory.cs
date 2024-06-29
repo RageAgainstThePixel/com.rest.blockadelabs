@@ -1,30 +1,40 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-using System.Collections.Generic;
 using Newtonsoft.Json;
+using System.Collections.Generic;
+using UnityEngine.Scripting;
 
 namespace BlockadeLabs.Skyboxes
 {
-    public sealed class SkyboxHistory
+    [Preserve]
+    public sealed class SkyboxHistory : BaseResponse, IListResponse<SkyboxInfo>
     {
+        [Preserve]
         [JsonConstructor]
-        public SkyboxHistory(
+        internal SkyboxHistory(
             [JsonProperty("data")] List<SkyboxInfo> skyboxes,
             [JsonProperty("totalCount")] int totalCount,
             [JsonProperty("has_more")] bool hasMore)
         {
-            Skyboxes = skyboxes;
+            Items = skyboxes;
             TotalCount = totalCount;
             HasMore = hasMore;
         }
 
-        [JsonProperty("data")]
-        public IReadOnlyList<SkyboxInfo> Skyboxes { get; }
-
+        [Preserve]
         [JsonProperty("totalCount")]
         public int TotalCount { get; }
 
+        [Preserve]
         [JsonProperty("has_more")]
         public bool HasMore { get; }
+
+        [Preserve]
+        [JsonProperty("data")]
+        public IReadOnlyList<SkyboxInfo> Items { get; }
+
+        [Preserve]
+        [JsonIgnore]
+        public IReadOnlyList<SkyboxInfo> Skyboxes => Items;
     }
 }

@@ -18,33 +18,44 @@ using Object = UnityEngine.Object;
 namespace BlockadeLabs.Skyboxes
 {
     [Preserve]
-    public sealed class SkyboxInfo
+    public sealed class SkyboxInfo : BaseResponse
     {
         [Preserve]
         [JsonConstructor]
-        public SkyboxInfo(
+        internal SkyboxInfo(
             [JsonProperty("id")] int id,
+            [JsonProperty("obfuscated_id")] string obfuscatedId,
             [JsonProperty("skybox_style_id")] int skyboxStyleId,
             [JsonProperty("skybox_style_name")] string skyboxStyleName,
+            [JsonProperty("model")] SkyboxModel model,
             [JsonProperty("status")] Status status,
-            [JsonProperty("queue_position")] int queuePosition,
             [JsonProperty("type")] string type,
+            [JsonProperty("queue_position")] int queuePosition,
             [JsonProperty("file_url")] string mainTextureUrl,
             [JsonProperty("thumb_url")] string thumbUrl,
             [JsonProperty("depth_map_url")] string depthTextureUrl,
             [JsonProperty("title")] string title,
-            [JsonProperty("obfuscated_id")] string obfuscatedId,
+            [JsonProperty("prompt")] string prompt,
+            [JsonProperty("negative_text")] string negativeText,
+            [JsonProperty("seed")] int seed,
+            [JsonProperty("remix_imagine_id")] int? remixId,
+            [JsonProperty("remix_obfuscated_id")] string remixObfuscatedId,
+            [JsonProperty("isMyFavorite")] bool isMyFavorite,
             [JsonProperty("created_at")] DateTime createdAt,
             [JsonProperty("updated_at")] DateTime updatedAt,
             [JsonProperty("dispatched_at")] DateTime dispatchedAt,
             [JsonProperty("processing_at")] DateTime processingAt,
             [JsonProperty("completed_at")] DateTime completedAt,
             [JsonProperty("error_message")] string errorMessage = null,
+            [JsonProperty("pusher_channel")] string pusherChannel = null,
+            [JsonProperty("pusher_event")] string pusherEvent = null,
             [JsonProperty("exports")] Dictionary<string, string> exports = null)
         {
             Id = id;
+            ObfuscatedId = obfuscatedId;
             SkyboxStyleId = skyboxStyleId;
             SkyboxStyleName = skyboxStyleName;
+            Model = model;
             Status = status;
             QueuePosition = queuePosition;
             Type = type;
@@ -52,13 +63,20 @@ namespace BlockadeLabs.Skyboxes
             ThumbUrl = thumbUrl;
             DepthTextureUrl = depthTextureUrl;
             Title = title;
-            ObfuscatedId = obfuscatedId;
+            Prompt = prompt;
+            NegativeText = negativeText;
+            Seed = seed;
+            RemixId = remixId;
+            RemixObfuscatedId = remixObfuscatedId;
+            IsMyFavorite = isMyFavorite;
             CreatedAt = createdAt;
             UpdatedAt = updatedAt;
             DispatchedAt = dispatchedAt;
             ProcessingAt = processingAt;
             CompletedAt = completedAt;
             ErrorMessage = errorMessage;
+            PusherChannel = pusherChannel;
+            PusherEvent = pusherEvent;
             exports ??= new Dictionary<string, string>();
             exports.TryAdd(SkyboxExportOption.Equirectangular_PNG, mainTextureUrl);
             exports.TryAdd(SkyboxExportOption.DepthMap_PNG, depthTextureUrl);
@@ -70,12 +88,21 @@ namespace BlockadeLabs.Skyboxes
         public int Id { get; }
 
         [Preserve]
+        [JsonProperty("obfuscated_id")]
+        public string ObfuscatedId { get; }
+
+        [Preserve]
         [JsonProperty("skybox_style_id")]
         public int SkyboxStyleId { get; }
 
         [Preserve]
         [JsonProperty("skybox_style_name")]
         public string SkyboxStyleName { get; }
+
+        [Preserve]
+        [JsonProperty("model")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public SkyboxModel Model { get; }
 
         [Preserve]
         [JsonProperty("status")]
@@ -120,8 +147,28 @@ namespace BlockadeLabs.Skyboxes
         public string Title { get; }
 
         [Preserve]
-        [JsonProperty("obfuscated_id")]
-        public string ObfuscatedId { get; }
+        [JsonProperty("prompt")]
+        public string Prompt { get; }
+
+        [Preserve]
+        [JsonProperty("negative_text")]
+        public string NegativeText { get; }
+
+        [Preserve]
+        [JsonProperty("seed")]
+        public int Seed { get; }
+
+        [Preserve]
+        [JsonProperty("remix_imagine_id")]
+        public int? RemixId { get; }
+
+        [Preserve]
+        [JsonProperty("remix_obfuscated_id")]
+        public string RemixObfuscatedId { get; }
+
+        [Preserve]
+        [JsonProperty("isMyFavorite")]
+        public bool IsMyFavorite { get; private set; }
 
         [Preserve]
         [JsonProperty("created_at")]
@@ -146,6 +193,14 @@ namespace BlockadeLabs.Skyboxes
         [Preserve]
         [JsonProperty("error_message")]
         public string ErrorMessage { get; }
+
+        [Preserve]
+        [JsonProperty("pusher_channel")]
+        public string PusherChannel { get; private set; }
+
+        [Preserve]
+        [JsonProperty("pusher_event")]
+        public string PusherEvent { get; private set; }
 
         [Preserve]
         [JsonProperty("exports")]
@@ -175,7 +230,7 @@ namespace BlockadeLabs.Skyboxes
             => await LoadAssetsAsync(false, cancellationToken);
 
         /// <summary>
-        /// Downloads and loads all of the assets associated with this skybox.
+        /// Downloads and loads all the assets associated with this skybox.
         /// </summary>
         /// <param name="debug">Optional, debug downloads.</param>
         /// <param name="cancellationToken">Optional, <see cref="CancellationToken"/>.</param>
@@ -188,7 +243,7 @@ namespace BlockadeLabs.Skyboxes
                 {
                     await Awaiters.UnityMainThread;
                     Rest.TryGetFileNameFromUrl(ThumbUrl, out var filename);
-                    Thumbnail = await Rest.DownloadTextureAsync(ThumbUrl, fileName: $"{ObfuscatedId}-thumb{Path.GetExtension(filename)}", parameters: new RestParameters(debug: debug), cancellationToken: cancellationToken);
+                    Thumbnail = await Rest.DownloadTextureAsync(ThumbUrl, fileName: $"{ObfuscatedId}-thumb{Path.GetExtension(filename)}", parameters: new RestParameters(debug: debug, headers: Client.DefaultRequestHeaders), cancellationToken: cancellationToken);
                 }
             }
 
@@ -209,12 +264,12 @@ namespace BlockadeLabs.Skyboxes
                             case SkyboxExportOption.DepthMap_PNG:
                             case SkyboxExportOption.Equirectangular_PNG:
                             case SkyboxExportOption.Equirectangular_JPG:
-                                var texture = await Rest.DownloadTextureAsync(exportUrl, path, parameters: new RestParameters(debug: debug), cancellationToken: cancellationToken);
+                                var texture = await Rest.DownloadTextureAsync(exportUrl, path, parameters: new RestParameters(debug: debug, headers: Client.DefaultRequestHeaders), cancellationToken: cancellationToken);
                                 exportedAssets[export.Key] = texture;
                                 break;
                             case SkyboxExportOption.CubeMap_PNG:
                             case SkyboxExportOption.CubeMap_Roblox_PNG:
-                                var zipPath = await Rest.DownloadFileAsync(exportUrl, path, parameters: new RestParameters(debug: debug), cancellationToken: cancellationToken);
+                                var zipPath = await Rest.DownloadFileAsync(exportUrl, path, parameters: new RestParameters(debug: debug, headers: Client.DefaultRequestHeaders), cancellationToken: cancellationToken);
                                 var files = await ExportUtilities.UnZipAsync(zipPath, cancellationToken);
                                 var textures = new List<Texture2D>();
 
@@ -224,15 +279,14 @@ namespace BlockadeLabs.Skyboxes
                                     textures.Add(face);
                                 }
 
-                                var cubemap = ExportUtilities.BuildCubemap(textures);
-                                exportedAssets[export.Key] = cubemap;
+                                exportedAssets[export.Key] = ExportUtilities.BuildCubemap(textures);
                                 break;
                             case SkyboxExportOption.HDRI_HDR:
                             case SkyboxExportOption.HDRI_EXR:
                             case SkyboxExportOption.Video_LandScape_MP4:
                             case SkyboxExportOption.Video_Portrait_MP4:
                             case SkyboxExportOption.Video_Square_MP4:
-                                await Rest.DownloadFileAsync(exportUrl, path, parameters: new RestParameters(debug: debug), cancellationToken: cancellationToken);
+                                await Rest.DownloadFileAsync(exportUrl, path, parameters: new RestParameters(debug: debug, headers: Client.DefaultRequestHeaders), cancellationToken: cancellationToken);
                                 break;
                             default:
                                 Debug.LogWarning($"No download task defined for {export.Key}!");

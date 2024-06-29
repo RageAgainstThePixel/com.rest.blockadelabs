@@ -3,14 +3,18 @@
     "rootNamespace": "BlockadeLabs",
     "references": [
         "GUID:a6609af893242c7438d701ddd4cce46a",
-        "GUID:7958db66189566541a6363568aee1575"
+        "GUID:7958db66189566541a6363568aee1575",
+        "GUID:457756d89b35d2941b3e7b37b4ece6f1"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Unity.SharpZipLib.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": false,
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false

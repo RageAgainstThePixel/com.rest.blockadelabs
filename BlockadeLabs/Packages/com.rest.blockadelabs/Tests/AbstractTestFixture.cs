@@ -10,8 +10,10 @@ namespace BlockadeLabs.Tests
         {
             var auth = new BlockadeLabsAuthentication().LoadDefaultsReversed();
             var settings = new BlockadeLabsSettings();
-            BlockadeLabsClient = new BlockadeLabsClient(auth, settings);
-            //BlockadeLabsClient.EnableDebug = true;
+            BlockadeLabsClient = new BlockadeLabsClient(auth, settings)
+            {
+                EnableDebug = true
+            };
         }
     }
 }
