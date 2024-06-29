@@ -178,7 +178,7 @@ namespace BlockadeLabs.Tests
 
             var progress = new Progress<SkyboxInfo>(async progress =>
             {
-                Debug.Log(progress.ToString());
+                Debug.Log(progress);
                 var result = await BlockadeLabsClient.SkyboxEndpoint.CancelAllPendingSkyboxGenerationsAsync();
                 Debug.Log(result ? "All pending generations successfully cancelled" : "No pending generations");
             });

@@ -42,14 +42,15 @@ The recommended installation method is though the unity package manager and [Ope
 
 ### Table of Contents
 
-- [Authentication](#authentication) :construction:
+- [Authentication](#authentication)
 - [Editor Dashboard](#editor-dashboard)
   - [Skybox Dashboard](#skybox-dashboard)
   - [History Dashboard](#history-dashboard)
 - [Skyboxes](#skyboxes)
   - [Get Skybox Styles](#get-skybox-styles)
+  - [Get Skybox Style Families](#get-skybox-style-families)
   - [Get Skybox Export Options](#get-skybox-export-options)
-  - [Generate Skybox](#generate-skybox)
+  - [Generate Skybox](#generate-skybox) :construction: :warning:
   - [Get Skybox by Id](#get-skybox)
   - [Request Skybox Export](#request-skybox-export)
   - [Delete Skybox by Id](#delete-skybox)
@@ -61,7 +62,7 @@ The recommended installation method is though the unity package manager and [Ope
 
 There are 4 ways to provide your API keys, in order of precedence:
 
-:warning: We recommended using the environment variables to load the API key instead of having it hard coded in your source. It is not recommended use this method in production, but only for accepting user credentials, local testing and quick start scenarios.
+> ![WARNING] We recommended using the environment variables to load the API key instead of having it hard coded in your source. It is not recommended use this method in production, but only for accepting user credentials, local testing and quick start scenarios.
 
 1. [Pass keys directly with constructor](#pass-keys-directly-with-constructor) :warning:
 2. [Unity Scriptable Object](#unity-scriptable-object) :warning:
@@ -112,7 +113,7 @@ var api = new BlockadeLabsClient(new BlockadeLabsAuthentication().LoadFromDirect
 
 Use your system's environment variables specify an api key to use.
 
-- Use `BLOCKADE_LABS_API_KEY` for your api key.
+- Use `BLOCKADELABS_API_KEY` for your api key.
 
 ```csharp
 var api = new BlockadeLabsClient(new BlockadeLabsAuthentication().LoadFromEnvironment());
@@ -146,9 +147,23 @@ Returns the list of predefined styles that can influence the overall aesthetic o
 
 ```csharp
 var api = new BlockadeLabsClient();
-var skyboxStyles = await api.SkyboxEndpoint.GetSkyboxStylesAsync();
+var skyboxStyles = await api.SkyboxEndpoint.GetSkyboxStylesAsync(SkyboxModel.Model3);
 
 foreach (var skyboxStyle in skyboxStyles)
+{
+    Debug.Log($"{skyboxStyle.Name}");
+}
+```
+
+#### [Get Skybox Style Families](https://api-documentation.blockadelabs.com/api/skybox.html#get-skybox-style-families)
+
+Returns the list of predefined styles that can influence the overall aesthetic of your skybox generation, sorted by style family. This route can be used in order to build a menu of styles sorted by family.
+
+```csharp
+var api = new BlockadeLabsClient();
+var skyboxFamilyStyles = await BlockadeLabsClient.SkyboxEndpoint.GetSkyboxStyleFamiliesAsync(SkyboxModel.Model3);
+
+foreach (var skyboxStyle in skyboxFamilyStyles)
 {
     Debug.Log($"{skyboxStyle.Name}");
 }
@@ -179,8 +194,16 @@ Generate a skybox.
 
 ```csharp
 var api = new BlockadeLabsClient();
-var request = new SkyboxRequest("mars", enhancePrompt: true);
-var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request);
+var skyboxStyles = await BlockadeLabsClient.SkyboxEndpoint.GetSkyboxStylesAsync(SkyboxModel.Model3);
+var request = new SkyboxRequest(skyboxStyles.First(), "mars", enhancePrompt: true);
+
+// You can also get progress callbacks when the generation progress has changed/updated
+var progress = new Progress<SkyboxInfo>(async progress =>
+{
+    Debug.Log(progress);
+});
+
+var skyboxInfo = await api.SkyboxEndpoint.GenerateSkyboxAsync(request, progressCallback: progress);
 Debug.Log($"Successfully created skybox: {skyboxInfo.Id}");
 
 if (skyboxInfo.TryGetAsset<Texture2D>(SkyboxExportOption.Equirectangular_PNG, out var texture))
@@ -211,7 +234,8 @@ if (skyboxInfo.TryGetAsset<Texture2D>(SkyboxExportOption.Equirectangular_PNG, ou
 
 Exports the skybox with the requested export type.
 
-> Note: You can also specify the export types when initially generating a skybox.
+> ![NOTE]
+> You can also specify the export types when initially generating a skybox.
 
 ```csharp
 var skyboxId = 42;
@@ -260,7 +284,8 @@ var result = await CancelSkyboxGenerationAsync(skyboxId);
 // result == true
 ```
 
-> Note: This is automatically done when cancelling a skybox generation using cancellation token.
+> ![NOTE]
+> This is automatically done when cancelling a skybox generation using cancellation token.
 
 #### [Cancel All Pending Skybox Generations](https://api-documentation.blockadelabs.com/api/skybox.html#cancel-all-pending-generations)
 
