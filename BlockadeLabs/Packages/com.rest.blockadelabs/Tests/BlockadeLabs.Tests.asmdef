@@ -5,6 +5,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "BlockadeLabs",
+        "Utilities.Async",
         "Utilities.Rest"
     ],
     "includePlatforms": [

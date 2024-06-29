@@ -4,10 +4,12 @@ using BlockadeLabs.Skyboxes;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using Utilities.Async;
 
 namespace BlockadeLabs.Tests
 {
@@ -98,17 +100,28 @@ namespace BlockadeLabs.Tests
             var exportOptions = await BlockadeLabsClient.SkyboxEndpoint.GetAllSkyboxExportOptionsAsync();
             Assert.IsNotNull(exportOptions);
             Assert.IsNotEmpty(exportOptions);
+            var exportTasks = new List<Task>();
 
             foreach (var exportOption in exportOptions)
             {
-                Debug.Log(exportOption.Key);
-                Assert.IsNotNull(exportOption);
-                skyboxInfo = await BlockadeLabsClient.SkyboxEndpoint.ExportSkyboxAsync(skyboxInfo, exportOption);
-                Assert.IsNotNull(skyboxInfo);
-                Assert.IsTrue(skyboxInfo.Exports.ContainsKey(exportOption.Key));
-                skyboxInfo.Exports.TryGetValue(exportOption.Key, out var exportUrl);
-                Debug.Log(exportUrl);
+                exportTasks.Add(ExportAsync(skyboxInfo));
+
+                async Task ExportAsync(SkyboxInfo exportInfo)
+                {
+                    await Awaiters.UnityMainThread;
+                    Debug.Log(exportOption.Key);
+                    Assert.IsNotNull(exportOption);
+                    var skyboxExport = await BlockadeLabsClient.SkyboxEndpoint.ExportSkyboxAsync(exportInfo, exportOption);
+                    Assert.IsNotNull(skyboxExport);
+                    Assert.IsTrue(skyboxExport.Exports.ContainsKey(exportOption.Key));
+                    skyboxExport.Exports.TryGetValue(exportOption.Key, out var exportUrl);
+                    Debug.Log(exportUrl);
+                }
             }
+
+            await Task.WhenAll(exportTasks).ConfigureAwait(true);
+            skyboxInfo = await BlockadeLabsClient.SkyboxEndpoint.GetSkyboxInfoAsync(skyboxInfo);
+            Assert.IsTrue(skyboxInfo.Exports.Count == exportTasks.Count);
 
             if (skyboxInfo.Exports.Count > 0)
             {
