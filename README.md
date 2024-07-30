@@ -1,10 +1,6 @@
 # com.rest.blockadelabs
 
-[![Discord](https://img.shields.io/discord/855294214065487932.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/xQgMW9ufN4) [![openupm](https://img.shields.io/npm/v/com.rest.blockadelabs?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/com.rest.blockadelabs/) [![openupm](https://img.shields.io/badge/dynamic/json?color=brightgreen&label=downloads&query=%24.downloads&suffix=%2Fmonth&url=https%3A%2F%2Fpackage.openupm.com%2Fdownloads%2Fpoint%2Flast-month%2Fcom.rest.blockadelabs)](https://openupm.com/packages/com.rest.blockadelabs/)
-
-A non-official [BlockadeLabs](https://www.blockadelabs.com/) Skybox AI RESTful client for the [Unity](https://unity.com/) Game Engine.
-
-I am not affiliated with BlockadeLabs and an account with api access is required.
+Notice of Archival: This repository has now been integrated with the [Official BlockadeLabs SDK](https://github.com/Blockade-Games/BlockadeLabs-SDK-Unity) v2.0.0
 
 ***All copyrights, trademarks, logos, and assets are the property of their respective owners.***
 
